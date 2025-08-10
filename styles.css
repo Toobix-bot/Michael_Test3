@@ -36,7 +36,26 @@ button:hover{transform:translateY(-1px);filter:brightness(1.1)}
 .story-out{flex:1;overflow:auto;padding:8px 10px;border:1px solid rgba(255,255,255,.06);border-radius:10px;background:#0c121a}
 .story-out p{margin:0 0 10px;line-height:1.4}
 .choices{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 0}
+.chip{font-size:.9rem;background:#0e141c;border:1px solid rgba(255,255,255,.08);border-radius:999px;padding:6px 10px}
 .freeform{display:flex;gap:8px}
 .freeform input{flex:1;padding:10px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.08);background:#0e141c;color:var(--fg)}
 .app-footer{max-width:1100px;margin:6px auto 20px;padding:0 12px;color:var(--muted)}
+.statusbar #menuBtn{margin-left:auto;padding:6px 10px;border-radius:8px}
+button[disabled]{opacity:.5;cursor:not-allowed;filter:none;transform:none}
 @media (max-width: 900px){.layout{grid-template-columns:1fr}.story{height:65vh}}
+
+/* overlay menu */
+.hidden{display:none !important}
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;z-index:1000}
+.overlay-card{background:var(--panel);border:1px solid rgba(255,255,255,.12);border-radius:14px;padding:20px;min-width:280px;max-width:90vw;box-shadow:0 20px 60px rgba(0,0,0,.5);text-align:center}
+.overlay-card h2{margin:0 0 10px}
+.btn-col{display:flex;flex-direction:column;gap:8px;margin:12px 0}
+
+/* toasts */
+#toasts{position:fixed;right:16px;bottom:16px;display:flex;flex-direction:column;gap:8px;z-index:2000}
+.toast{background:#0f1622;border:1px solid rgba(255,255,255,.12);color:var(--fg);padding:10px 12px;border-radius:10px;box-shadow:0 10px 30px rgba(0,0,0,.4);min-width:200px;max-width:320px;opacity:.98;animation:slideIn .15s ease-out}
+.toast.ok{border-color:rgba(140,255,193,.35)}
+.toast.info{border-color:rgba(94,177,255,.35)}
+.toast.err{border-color:rgba(255,107,107,.35)}
+@keyframes slideIn{from{transform:translateY(8px);opacity:0}to{transform:translateY(0);opacity:1}}

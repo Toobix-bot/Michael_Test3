@@ -9,6 +9,7 @@ Eine leichte, clientseitige Story-Engine, die die Rollen Autor, Erzähler, Leser
 ## Bedienung
 
 - Idee/Prompt eingeben, Genre wählen und auf „Neue Geschichte starten“ klicken.
+- Unter dem Prompt-Feld findest du Vorschlags‑Chips (z. B. Mystery: Leuchtturm‑SOS, Sci‑Fi: Zukunftssignal) zum schnellen Start.
 - Modus „Geschichte“ (klassisch) oder „Meta“ (Website/Programmierer/Nutzer) wählen.
 - Kapitel-Länge (Kurz/Mittel/Lang) steuert Beats pro Kapitel und Cast-Größe.
 - Buttons unter „Wahlmöglichkeiten“ treffen oder eigene Eingabe über das Textfeld hinzufügen.
@@ -52,4 +53,10 @@ npm test
 - Ein Profil speichert: Gesamtzahl Runs/Kapitel, Bestscore, Perks (passive Start-Boni), Errungenschaften, Relikte, letzte 10 Runs.
 - Perks (z. B. Optimist, CalmMind) wirken als kleine Start-Boosts auf Hoffnung/Spannung/Gefahr und sorgen für zyklische, freundliche Progression.
 - Export/Import des Profils als JSON ist im „Profil & Fortschritt“-Bereich möglich.
+
+### Heimat & Laden (Punkte)
+
+- Abgeschlossene Runs vergeben Punkte (aus Score + Kapiteln).
+- Im Abschnitt „Heimat & Laden“ kannst du Punkte gegen Perks („Optimist“, „Klarer Kopf“) oder ein Zufalls‑Relikt eintauschen.
+- Gekaufte Vorteile gelten als CarryOver für künftige Runs.
 

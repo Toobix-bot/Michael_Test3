@@ -12,8 +12,8 @@
   </head>
   <body>
     <header class="app-header">
-      <h1>KI Story‑Weber</h1>
-      <p class="sub">Autor • Erzähler • Leser • Figur – alles im Browser, keine Server nötig.</p>
+  <h1>KI Story‑Weber</h1>
+  <p class="sub">Autor • Erzähler • Leser • Figur – alles im Browser, keine Server nötig.</p>
     </header>
 
     <main class="layout">
@@ -23,6 +23,15 @@
           <input id="seed" placeholder="z.B. Nebel über einer verlassenen Küstenstadt" />
         </div>
         <div class="row">
+          <div class="chips">
+            <button class="chip promptchip" data-seed="Ein Leuchtturm blinkt unregelmäßig – SOS?" data-genre="mystery">Mystery: Leuchtturm‑SOS</button>
+            <button class="chip promptchip" data-seed="Ein verborgener Pfad im alten Wald öffnet sich nur bei Regen." data-genre="fantasy">Fantasy: Regenpfad</button>
+            <button class="chip promptchip" data-seed="Ein Forschungsschiff empfängt ein Signal aus der Zukunft." data-genre="sci-fi">Sci‑Fi: Zukunftssignal</button>
+            <button class="chip promptchip" data-seed="Release in 2 Stunden, ein Test flackert – was nun?" data-genre="mystery">Meta: Flaky Test</button>
+            <button class="chip promptchip" data-seed="Eine Stadt lebt von Erinnerungen als Währung." data-genre="drama">Drama: Erinnerungsmarkt</button>
+          </div>
+        </div>
+        <div class="row">
           <label for="genre">Genre</label>
           <select id="genre">
             <option value="mystery">Mystery</option>
@@ -30,6 +39,21 @@
             <option value="sci-fi">Science-Fiction</option>
             <option value="abenteuer">Abenteuer</option>
             <option value="drama">Drama</option>
+          </select>
+        </div>
+        <div class="row">
+          <label for="aiProfile">KI-Profil (Vorschläge)</label>
+          <select id="aiProfile">
+            <option value="balanced" selected>Balanciert</option>
+            <option value="defensive">Defensiv</option>
+            <option value="aggressive">Offensiv</option>
+          </select>
+        </div>
+        <div class="row">
+          <label for="aiProvider">KI-Lab Provider</label>
+          <select id="aiProvider">
+            <option value="none" selected>Keiner (rein lokal)</option>
+            <option value="mock">Mock (Demo)</option>
           </select>
         </div>
         <div class="row">
@@ -74,14 +98,29 @@
           </p>
         </details>
 
+        <details class="hint">
+          <summary>Einstellungen erklärt</summary>
+          <ul>
+            <li><strong>Genre</strong>: Bestimmt Ton, Motive und Vokabular.</li>
+            <li><strong>Kreative Freiheit</strong>: Je höher, desto mehr überraschende Beats und zusätzliche Optionen.</li>
+            <li><strong>Modus</strong>: Geschichte (klassisch) oder Meta (Website/Programmierung als „Story“).</li>
+            <li><strong>Kapitel-Länge</strong>: Kurz/Mittel/Lang steuert Beats pro Kapitel und die Größe des Casts.</li>
+            <li><strong>Leser-Interjektionen</strong>: Schaltet kurze Kommentare einer Leser‑Stimme ein/aus.</li>
+            <li><strong>Profil</strong>: Perks/Relikte geben kleine Start‑Boni; Fortschritt bleibt zwischen Runs erhalten.</li>
+            <li><strong>KI-Profil</strong>: Definiert die Vorschlags-Tendenz (defensiv/balanciert/offensiv). Die persona lernt aus vergangenen Runs.</li>
+          </ul>
+        </details>
+
         <hr style="border:none;border-top:1px solid rgba(255,255,255,.08);margin:10px 0" />
         <h3 style="margin:6px 0 8px;font-size:1rem;color:var(--muted)">Profil & Fortschritt</h3>
         <div id="profileBox" class="profile">
           <div class="row"><span id="pRuns"></span></div>
           <div class="row"><span id="pBest"></span></div>
+          <div class="row"><span id="pPoints"></span></div>
           <div class="row"><span id="pPerks"></span></div>
           <div class="row"><span id="pRelics"></span></div>
           <div class="row"><span id="pAch"></span></div>
+          <div class="row"><span id="pTitles"></span></div>
           <div class="btn-row">
             <button id="exportBtn">Export</button>
             <label class="filebtn">
@@ -89,15 +128,52 @@
               <input id="importInput" type="file" accept="application/json" hidden />
             </label>
             <button id="resetProfileBtn" class="ghost">Profil zurücksetzen</button>
+            <button id="resetPersonaBtn" class="ghost">Persona zurücksetzen</button>
           </div>
         </div>
+        <details class="hint">
+          <summary>Heimat & Laden</summary>
+          <div class="row">Tausche Punkte gegen kleine Start‑Boni:</div>
+          <div class="btn-row">
+            <button id="buyOptimistBtn">Perk „Optimist” (50 P)</button>
+            <button id="buyCalmBtn">Perk „Klarer Kopf” (40 P)</button>
+            <button id="buyRelicBtn" class="ghost">Zufalls‑Relikt (60 P)</button>
+          </div>
+          <small style="color:var(--muted)">Punkte sammelst du durch abgeschlossene Runs (abhängig von Score & Kapiteln).</small>
+        </details>
+        <details class="hint">
+          <summary>CarryOver-Startoptionen</summary>
+          <div class="row">
+            <label for="startRelic">Start-Relikt (optional)</label>
+            <select id="startRelic">
+              <option value="">Automatisch</option>
+            </select>
+          </div>
+          <div class="row">
+            <label for="startCast">Startfigur bevorzugen (optional)</label>
+            <input id="startCast" placeholder="Name (falls vorhanden)" />
+          </div>
+        </details>
       </section>
 
       <section class="panel story">
+        <div id="menuOverlay" class="overlay hidden">
+          <div class="overlay-card">
+            <h2>Hauptmenü</h2>
+            <div id="menuSummary" class="insights-box" style="text-align:left"></div>
+            <div class="btn-col">
+              <button id="menuContinue" class="primary">Fortsetzen</button>
+              <button id="menuNew">Neuer Run</button>
+              <button id="menuSettings" class="ghost">Einstellungen</button>
+            </div>
+            <small style="color:var(--muted)">Tipp: Einstellungen links anpassen. Fortsetzen lädt gespeicherten Stand, falls vorhanden.</small>
+          </div>
+        </div>
         <div class="statusbar">
           <span id="statusChapter"></span>
           <span id="statusWorld"></span>
           <span id="statusCast"></span>
+          <button id="menuBtn" class="ghost">Menü</button>
         </div>
         <div class="world-bars">
           <div class="bar"><span>Hoffnung</span><div class="track"><div class="fill hope" id="barHope"></div></div></div>
@@ -122,10 +198,25 @@
         <div id="choices" class="choices"></div>
 
         <div class="freeform">
-          <input id="freeInput" placeholder="Eigene Aktion / Wendung vorschlagen…" />
+          <input id="freeInput" placeholder="Eigene Aktion / Wendung … z. B. 'untersuchen', 'konfrontieren', 'fragen' oder Slash: /untersuchen, /rollback (Meta)" />
           <button id="actBtn" class="secondary">Ausführen</button>
         </div>
+        <div class="chips">
+          <button class="chip" data-free="/untersuchen Bereich">Untersuchen</button>
+          <button class="chip" data-free="/konfrontieren Figur">Konfrontieren</button>
+          <button class="chip" data-free="/fragen Hinweis">Fragen</button>
+          <button class="chip" data-free="/verbündeter suchen">Verbündeten suchen</button>
+          <button class="chip" data-free="/rückzug">Rückzug</button>
+          <button class="chip" data-free="/refactor (meta)">Meta: Refactor</button>
+          <button class="chip" data-free="/review (meta)">Meta: Review</button>
+          <button class="chip" data-free="/rollback (meta)">Meta: Rollback</button>
+        </div>
+        <div class="hint" style="margin-top:6px">
+          Tipp: Verwende starke Verben oder Slash‑Befehle. Die KI interpretiert <code>/untersuchen</code> als Fortschritt,
+          <code>/konfrontieren</code> als Enthüllung (mehr Spannung), <code>/rückzug</code>/<code>/rollback</code> als Rückschritt (Risikoabbau).
+        </div>
       </section>
+  <div id="toasts"></div>
     </main>
 
     <footer class="app-footer">
@@ -134,13 +225,16 @@
 
     <script type="module">
   import { StoryEngine } from './src/engine.mjs';
-  import { loadProfile, saveProfile, resetProfile, exportProfile, importProfile, applyCarryoverOptions, applyRunResultToProfile } from './src/profile.mjs';
+  import { loadProfile, saveProfile, resetProfile, exportProfile, importProfile, applyCarryoverOptions, applyRunResultToProfile, canAfford, purchasePerk, purchaseRelic } from './src/profile.mjs';
+  import { getProvider } from './src/ai/providers.mjs';
 
       const els = {
         seed: document.getElementById('seed'),
         genre: document.getElementById('genre'),
   freedom: document.getElementById('freedom'),
   freedomVal: document.getElementById('freedomVal'),
+  aiProfile: document.getElementById('aiProfile'),
+  aiProvider: document.getElementById('aiProvider'),
   mode: document.getElementById('mode'),
   complexity: document.getElementById('complexity'),
         perspective: document.getElementById('perspective'),
@@ -153,6 +247,11 @@
   exportBtn: document.getElementById('exportBtn'),
   importInput: document.getElementById('importInput'),
   resetProfileBtn: document.getElementById('resetProfileBtn'),
+  resetPersonaBtn: document.getElementById('resetPersonaBtn'),
+  pPoints: document.getElementById('pPoints'),
+  pTitles: document.getElementById('pTitles'),
+  startRelic: document.getElementById('startRelic'),
+  startCast: document.getElementById('startCast'),
         story: document.getElementById('story'),
         choices: document.getElementById('choices'),
   statusChapter: document.getElementById('statusChapter'),
@@ -164,10 +263,21 @@
         freeInput: document.getElementById('freeInput'),
         actBtn: document.getElementById('actBtn'),
   insightsBox: document.getElementById('insightsBox'),
+  menuOverlay: document.getElementById('menuOverlay'),
+  menuContinue: document.getElementById('menuContinue'),
+  menuNew: document.getElementById('menuNew'),
+  menuSettings: document.getElementById('menuSettings'),
+  menuBtn: document.getElementById('menuBtn'),
+  menuSummary: document.getElementById('menuSummary'),
+  toasts: document.getElementById('toasts'),
+  buyOptimistBtn: document.getElementById('buyOptimistBtn'),
+  buyCalmBtn: document.getElementById('buyCalmBtn'),
+  buyRelicBtn: document.getElementById('buyRelicBtn'),
       };
 
-      let engine = null;
+    let engine = null;
   let profile = loadProfile();
+  let provider = null;
 
       function renderLog(log) {
         els.story.innerHTML = '';
@@ -204,9 +314,23 @@
       function renderProfile() {
         els.pRuns.textContent = `Runs gesamt: ${profile.totalRuns} · Kapitel gesamt: ${profile.totalChapters}`;
         els.pBest.textContent = `Bester Score: ${profile.bestScore}`;
+  els.pPoints.textContent = `Punkte: ${profile.points ?? 0}`;
         els.pPerks.textContent = `Perks: ${profile.perks.join(', ') || '–'}`;
         els.pRelics.textContent = `Relikte: ${profile.relics.join(', ') || '–'}`;
         els.pAch.textContent = `Errungenschaften: ${profile.achievements.join(', ') || '–'}`;
+        const title = computeTitles(profile);
+        els.pTitles.textContent = title ? `Titel: ${title}` : '';
+        // fill carryover dropdown
+        const sel = els.startRelic;
+        if (sel && sel.children.length <= 1) {
+          (profile.relics||[]).forEach(r => {
+            const o = document.createElement('option'); o.value = r; o.textContent = r; sel.appendChild(o);
+          });
+        }
+  // enable/disable shop buttons
+  if (els.buyOptimistBtn) els.buyOptimistBtn.disabled = profile.perks.includes('Optimist') || !canAfford(profile, 50);
+  if (els.buyCalmBtn) els.buyCalmBtn.disabled = profile.perks.includes('CalmMind') || !canAfford(profile, 40);
+  if (els.buyRelicBtn) els.buyRelicBtn.disabled = !canAfford(profile, 60);
       }
 
       function renderInsights() {
@@ -245,10 +369,15 @@
         const mode = els.mode.value || 'story';
         const complexity = els.complexity.value || 'normal';
         const readerMode = els.perspective.value || 'auto';
+  const aiProfile = els.aiProfile.value || 'balanced';
+  provider = getProvider(els.aiProvider.value);
   const carry = applyCarryoverOptions(profile);
-  engine = new StoryEngine({ seed, genre, freedom, mode, complexity, readerMode, language: 'de', boosts: carry.boosts, explain: true, onEnd: (result) => {
+        const startRelic = els.startRelic?.value || '';
+        const startCastPref = (els.startCast?.value||'').trim();
+  engine = new StoryEngine({ seed, genre, freedom, mode, complexity, readerMode, language: 'de', boosts: carry.boosts, explain: true, aiProfile, startRelic, startCastPref, stylePref: profile.stylePref, policy: profile.policy, onEnd: (result) => {
           profile = applyRunResultToProfile(profile, result);
           renderProfile();
+          toast('Run abgeschlossen: Score '+result.score, 'ok');
         }});
         engine.onUpdate((state) => {
           renderLog(state.log);
@@ -256,6 +385,7 @@
           renderStatus(state);
         });
         engine.start();
+        toast('Neue Geschichte gestartet', 'info');
       }
 
       els.startBtn.addEventListener('click', boot);
@@ -265,10 +395,25 @@
         engine?.next({ type: 'free', text });
         els.freeInput.value = '';
       });
+      document.addEventListener('click', (e) => {
+        const t = e.target;
+        if (t && t.classList && t.classList.contains('chip')) {
+          const val = t.getAttribute('data-free') || '';
+          els.freeInput.value = val;
+        }
+        if (t && t.classList && t.classList.contains('promptchip')) {
+          const seed = t.getAttribute('data-seed') || '';
+          const genre = t.getAttribute('data-genre') || '';
+          if (seed) els.seed.value = seed;
+          if (genre) els.genre.value = genre;
+        }
+      });
       els.saveBtn.addEventListener('click', () => {
         if (!engine) return;
         const save = engine.save();
         localStorage.setItem('ki-story-weber-save', JSON.stringify(save));
+  refreshMenuFromSave();
+  toast('Gespeichert', 'ok');
       });
       els.loadBtn.addEventListener('click', () => {
         const raw = localStorage.getItem('ki-story-weber-save');
@@ -283,8 +428,11 @@
             renderStatus(state);
           });
           engine.load(data);
+          refreshMenuFromSave();
+          toast('Save geladen', 'ok');
         } catch (e) {
           console.error('Laden fehlgeschlagen', e);
+          toast('Laden fehlgeschlagen', 'err');
         }
       });
       els.resetBtn.addEventListener('click', () => {
@@ -294,14 +442,80 @@
         document.title = 'KI Story-Weber – Interaktives Erzählen';
       });
 
+      // menu
+      const showMenu = () => els.menuOverlay.classList.remove('hidden');
+      const hideMenu = () => els.menuOverlay.classList.add('hidden');
+      const refreshMenuFromSave = () => {
+        const raw = localStorage.getItem('ki-story-weber-save');
+        if (!raw) {
+          els.menuSummary.textContent = 'Kein gespeicherter Run.';
+          els.menuContinue.setAttribute('disabled','');
+          return;
+        }
+        try {
+          const s = JSON.parse(raw);
+          const seed = (s.seed||'').toString();
+          const seedShort = seed.length>80 ? seed.slice(0,77)+'…' : seed;
+          const world = s.world||{};
+          const cast = (s.cast||[]).map(c=>c.name||c).join(', ');
+          const lines = [];
+          lines.push(`Genre: ${s.genre} · Modus: ${s.mode}`);
+          lines.push(`Kapitel: ${s.chapter}/${s.maxChapters} · Schritt: ${s.step}`);
+          lines.push(`Welt: Hoffnung ${(world.hope*100|0)||0}% · Spannung ${(world.tension*100|0)||0}% · Gefahr ${(world.threat*100|0)||0}%`);
+          if (cast) lines.push(`Figuren: ${cast}`);
+          if (seedShort) lines.push(`Idee: ${seedShort}`);
+          els.menuSummary.textContent = lines.join('\n');
+          els.menuContinue.removeAttribute('disabled');
+        } catch {
+          els.menuSummary.textContent = 'Kein gespeicherter Run.';
+          els.menuContinue.setAttribute('disabled','');
+        }
+      };
+      els.menuContinue.addEventListener('click', () => {
+        const raw = localStorage.getItem('ki-story-weber-save');
+        if (!raw) return;
+        try {
+          const data = JSON.parse(raw);
+          els.freedom.value = String(Math.round((data.freedom ?? 0.4)*100));
+          engine = new StoryEngine({ seed: data.seed, genre: data.genre, freedom: data.freedom, mode: data.mode, complexity: data.complexity, readerMode: data.readerMode, language: data.language });
+          engine.onUpdate((state) => { renderLog(state.log); renderChoices(state.choices); renderStatus(state); });
+          engine.load(data);
+          hideMenu();
+        } catch {}
+      });
+      els.menuNew.addEventListener('click', () => { hideMenu(); });
+      els.menuSettings.addEventListener('click', () => { hideMenu(); });
+      els.menuBtn.addEventListener('click', () => { refreshMenuFromSave(); showMenu(); });
+      document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !els.menuOverlay.classList.contains('hidden')) hideMenu(); });
+
+      // show menu on load if save exists
+      refreshMenuFromSave();
+      if (localStorage.getItem('ki-story-weber-save')) showMenu();
+
       // AI co-player buttons
       els.aiSuggestBtn.addEventListener('click', () => {
         renderInsights();
+        // optional provider suggestion
+        if (provider && provider.name !== 'none') {
+          try {
+            const st = engine?.getPublicState?.();
+            const ps = provider.suggest?.(st, st?.choices||[]);
+            if (ps && typeof ps.index === 'number') {
+              const title = st?.choices?.[ps.index]?.title || `Index ${ps.index}`;
+              toast(`Provider: ${title}${ps.rationale?(' — '+ps.rationale):''}`, 'info');
+            }
+          } catch {}
+        }
       });
       els.aiAutoBtn.addEventListener('click', () => {
         const s = engine?.getInsights?.();
         if (s?.suggestion) {
           engine.next({ type: 'choice', index: s.suggestion.index });
+        }
+        else if (provider && provider.name !== 'none') {
+          const st = engine?.getPublicState?.();
+          const ps = provider.suggest?.(st, st?.choices||[]);
+          if (ps && typeof ps.index === 'number') engine.next({ type: 'choice', index: ps.index });
         }
       });
 
@@ -313,7 +527,55 @@
         profile = await importProfile(file);
         renderProfile();
       });
-      els.resetProfileBtn.addEventListener('click', () => { resetProfile(); profile = loadProfile(); renderProfile(); });
+  els.resetProfileBtn.addEventListener('click', () => { resetProfile(); profile = loadProfile(); renderProfile(); toast('Profil zurückgesetzt','info'); });
+  els.resetPersonaBtn.addEventListener('click', () => { profile.stylePref = { learn: true, accents: { insight: 0, bold: 0, caution: 0, momentum: 0, empathy: 0 } }; saveProfile(profile); renderProfile(); toast('Persona zurückgesetzt','info'); });
+
+      // shop actions
+      function makeRelicName() {
+        const a = ['Stern','Nebel','Echo','Kern','Flamme','Pfad','Schlüssel','Spiegel','Knoten','Harfe'];
+        const b = [' der Dämmerung',' des Nordwinds',' der Tiefe',' der Erinnerung',' des Aufbruchs',' des Flüsterns'];
+        return (a[Math.floor(Math.random()*a.length)] + b[Math.floor(Math.random()*b.length)]);
+      }
+      els.buyOptimistBtn?.addEventListener('click', () => {
+        const res = purchasePerk(profile, 'Optimist', 50);
+        if (res.ok) { profile = res.profile; renderProfile(); toast('Gekauft: Optimist', 'ok'); saveProfile(profile); }
+        else { toast(res.reason || 'Nicht genug Punkte', 'err'); }
+      });
+      els.buyCalmBtn?.addEventListener('click', () => {
+        const res = purchasePerk(profile, 'CalmMind', 40);
+        if (res.ok) { profile = res.profile; renderProfile(); toast('Gekauft: Klarer Kopf', 'ok'); saveProfile(profile); }
+        else { toast(res.reason || 'Nicht genug Punkte', 'err'); }
+      });
+      els.buyRelicBtn?.addEventListener('click', () => {
+        const name = makeRelicName();
+        const res = purchaseRelic(profile, name, 60);
+        if (res.ok) { profile = res.profile; renderProfile(); toast('Relikt erhalten: '+name, 'ok'); saveProfile(profile); }
+        else { toast(res.reason || 'Nicht genug Punkte', 'err'); }
+      });
+
+      // toasts
+      function toast(msg, kind='info', ms=2500){
+        const t = document.createElement('div');
+        t.className = `toast ${kind}`;
+        t.textContent = msg;
+        els.toasts.appendChild(t);
+        setTimeout(()=>{ t.style.transition='opacity .2s'; t.style.opacity='0'; setTimeout(()=>t.remove(), 180); }, ms);
+      }
+
+      // titles by dominant accents across runs (simple)
+      function computeTitles(p){
+        // derive a fun title from achievements/perks/relic count
+        const badges = [];
+        if ((p.achievements||[]).includes('BeaconOfHope')) badges.push('Lichtbringer');
+        if ((p.achievements||[]).includes('TamedTheStorm')) badges.push('Sturmzähmer');
+        if ((p.achievements||[]).includes('LongJourney')) badges.push('Weitwanderer');
+        if ((p.achievements||[]).includes('MarathonMind')) badges.push('Marathon-Geist');
+        if ((p.achievements||[]).includes('WildImprov')) badges.push('Impro-Magier');
+        if ((p.perks||[]).includes('Optimist')) badges.push('Optimist');
+        if ((p.perks||[]).includes('CalmMind')) badges.push('Klarer Kopf');
+        if (p.relics?.length>=5) badges.push('Sammler/in');
+        return badges.join(' · ');
+      }
 
       // initial render
   renderProfile();

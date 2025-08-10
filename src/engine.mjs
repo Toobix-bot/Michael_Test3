@@ -40,6 +40,9 @@ export class StoryEngine {
       world: { tension: 0.2, hope: 0.5, threat: 0.2 },
   freedom: 0.4,
   accentTallies: { insight: 0, bold: 0, caution: 0, momentum: 0, empathy: 0 },
+  history: { verbs: [], details: [], voices: [], beatKinds: [], subjects: [] },
+  lastActorIndex: -1,
+  intentCounts: { progress: 0, reveal: 0, setback: 0 },
     };
     this._listeners = [];
     this._rand = rng(hashString(`${this.state.seed}|${this.state.genre}`));
@@ -50,11 +53,23 @@ export class StoryEngine {
   this._freedom = typeof opts.freedom === 'number' ? Math.max(0, Math.min(1, opts.freedom)) : 0.4;
   this.state.freedom = this._freedom;
   this._explain = !!opts.explain;
+  this._aiProfile = opts.aiProfile || 'balanced'; // 'balanced' | 'defensive' | 'aggressive'
+  this._startRelic = opts.startRelic || '';
+  this._startCastPref = opts.startCastPref || '';
+  this._stylePref = opts.stylePref || null;
+  this._policy = opts.policy || null; // { intents: { progress, reveal, setback } }
     // apply boosts (carryover)
     const boosts = opts.boosts || {};
     this.state.world.hope = clamp01(this.state.world.hope + (boosts.startHope||0));
     this.state.world.tension = clamp01(this.state.world.tension + (boosts.startTension||0));
     this.state.world.threat = clamp01(this.state.world.threat + (boosts.startThreat||0));
+    // seed accent tallies from style preferences (learned persona)
+    if (this._stylePref?.accents) {
+      for (const k of Object.keys(this._stylePref.accents)) {
+        const v = Number(this._stylePref.accents[k]||0);
+        if (!isNaN(v) && k in this.state.accentTallies) this.state.accentTallies[k] += Math.max(0, Math.min(5, v));
+      }
+    }
   }
 
   onUpdate(fn) { this._listeners.push(fn); }
@@ -64,7 +79,21 @@ export class StoryEngine {
   start() {
     // Initialize cast
     this.state.cast = defaultCast(this.state.genre, this._rand, this.state.complexity);
+    // apply carryover start options
+    if (this._startCastPref) {
+      const i = this.state.cast.findIndex(c => (c.name||'').toLowerCase() === this._startCastPref.toLowerCase());
+      if (i > 0) { const [c] = this.state.cast.splice(i,1); this.state.cast.unshift(c); }
+    }
     const hook = this._author.hook(this.state);
+    if (this._startRelic) {
+      this.state.log.push(`[Relikt] Du startest mit: ${this._startRelic}.`);
+      // small thematic world nudge based on relic keyword
+      const k = this._startRelic.toLowerCase();
+      if (k.includes('seher') || k.includes('karte')) this.state.world.hope += 0.03;
+      if (k.includes('kern') || k.includes('talisman')) this.state.world.tension -= 0.02;
+      if (k.includes('archiv') || k.includes('klammer')) this.state.world.threat -= 0.02;
+      clampWorld(this.state.world);
+    }
     this.state.log.push(this._narrator.tell(hook, this.state));
     this.state.choices = this._author.offerChoices(this.state);
     this._maybeReaderInterject('start');
@@ -78,7 +107,9 @@ export class StoryEngine {
       if (!c) return;
       this._advance(c.intent, c.target, { selected: c });
     } else if (input.type === 'free') {
-      this._advance({ kind: 'user', text: input.text });
+  const mapped = parseFreeIntent(input.text, this.state);
+  if (mapped) this._advance(mapped.intent, mapped.target, { source: 'free', raw: input.text });
+  else this._advance({ kind: 'user', text: input.text });
     }
   }
 
@@ -117,6 +148,9 @@ export class StoryEngine {
         if (a in this.state.accentTallies) this.state.accentTallies[a] += 1;
       }
     }
+    if (meta?.selected?.intent?.kind && this.state.intentCounts[meta.selected.intent.kind] !== undefined) {
+      this.state.intentCounts[meta.selected.intent.kind] += 1;
+    }
     if (this._explain) {
       const dw = deltas(before, this.state.world);
       const explain = explainDelta(dw);
@@ -138,7 +172,15 @@ export class StoryEngine {
     const state = this.state;
     if (!state.choices || state.choices.length === 0) return null;
     const targetTension = 0.4 + (this._freedom - 0.5) * 0.1; // slight drift with freedom
-    const scored = state.choices.map((c, idx) => {
+    const weights = (p => {
+      switch(p){
+        case 'defensive': return { momentum: 2.0, safety: 3.0, tensionFit: 1.2, style: 0.4 };
+        case 'aggressive': return { momentum: 3.0, safety: 1.2, tensionFit: 1.5, style: 0.6 };
+        default: return { momentum: 2.5, safety: 2.0, tensionFit: 1.0, style: 0.5 };
+      }
+    })(this._aiProfile);
+  const policy = (this._policy && this._policy.intents) ? this._policy.intents : null;
+  const scored = state.choices.map((c, idx) => {
       const eff = c.effects || computeEffects(c.intent);
       const hope = eff.hope || 0, tens = eff.tension || 0, thr = eff.threat || 0;
       const predTension = clamp01(state.world.tension + tens);
@@ -147,7 +189,12 @@ export class StoryEngine {
       const momentum = hope - Math.max(0, tens*0.5);
       const tensionFit = -Math.abs(targetTension - predTension);
       const style = styleAffinity(c.accents, this.state.accentTallies);
-      const score = 2.5*momentum + 2.0*safety + 1.0*tensionFit + 0.5*style;
+      let score = weights.momentum*momentum + weights.safety*safety + weights.tensionFit*tensionFit + weights.style*style;
+      if (policy && c.intent?.kind && policy[c.intent.kind] != null) {
+        const pref = Math.max(0.5, Math.min(2.0, Number(policy[c.intent.kind]) || 1));
+        const beta = 0.3; // modest policy influence
+        score = score * (1 + beta * (pref - 1));
+      }
       const isBad = (thr > 0.06 && hope < 0.02);
       return { idx, score, c, eff, predTension, isBad };
     }).sort((a,b)=>b.score-a.score);
@@ -219,11 +266,13 @@ export class StoryEngine {
       genre: s.genre,
       mode: s.mode,
       score,
+  accents: { ...s.accentTallies },
       achievements,
       relic,
       ending,
       chapters,
       cast: s.cast.map(c => c.name),
+  intentCounts: { ...s.intentCounts },
     };
     this.state.log.push(this._narrator.tell({ type: 'runEnd', result }, this.state));
     this.state.choices = [];
@@ -260,8 +309,14 @@ class AuthorAgent {
   // vary distribution by freedom (mehr Freiheit -> mehr reveal/choice)
   const base = ['reveal','progress','setback','choice'];
   const more = this.rand() < (0.5 * (state?.freedom ?? 0.4)) ? ['reveal','choice'] : [];
-  const opts = base.concat(more);
-  const kind = opts[Math.floor(r*opts.length)];
+    const opts = base.concat(more);
+    let kind = opts[Math.floor(r*opts.length)];
+    // avoid 3x repeat of same beat kind
+    const recent = state.history?.beatKinds || [];
+    if (recent.length >= 2 && recent[recent.length-1] === kind && recent[recent.length-2] === kind) {
+      kind = base.find(k => k !== kind) || kind;
+    }
+    pushHistory(state.history.beatKinds, kind, 4);
     return { kind, target };
   }
   offerChoices(state) {
@@ -314,10 +369,9 @@ class NarratorAgent {
         ? `Du entscheidest: "${payload.beat.text}" – der Release-Plan verschiebt sich.`
         : `Du schlägst vor: "${payload.beat.text}" – das verändert die Stimmung.`;
     }
-    const act = payload.act || {};
-    const voice = pick([
-      'knapp', 'bildhaft', 'nüchtern', 'poetisch'
-    ], this.rand);
+  const act = payload.act || {};
+  const voice = pickDistinct(['knapp','bildhaft','nüchtern','poetisch','sinngenau','knisternd'], state.history.voices, 3, this.rand);
+  pushHistory(state.history.voices, voice, 3);
     let line = '';
     if (state.mode === 'meta') {
       switch (payload.beat?.kind) {
@@ -358,7 +412,7 @@ class ReaderAgent {
 
 // Helpers
 function defaultCast(genre, rand, complexity) {
-  const names = ['Lina','Aras','Milo','Kira','Jon','Elif','Rafi','Noa','Zara','Ivo'];
+  const names = ['Lina','Aras','Milo','Kira','Jon','Elif','Rafi','Noa','Zara','Ivo','Runa','Tariq','Mara','Naeem','Sora','Tilo'];
   const rolesByGenre = {
     mystery: ['Ermittler','Archivarin','Journalist','Zeugin','Analyst'],
     fantasy: ['Magierin','Hüter','Bardin','Kundschafter','Alchimist'],
@@ -381,21 +435,27 @@ function pickTraits(rand) {
 }
 
 function chooseActionForBeat(beat, state, rand) {
-  const hero = state.cast[Math.floor(rand()*state.cast.length)] || state.cast[0] || { name: 'Jemand' };
+  // rotate actor to avoid repetition
+  if (state.cast.length > 0) {
+    state.lastActorIndex = (state.lastActorIndex + 1) % state.cast.length;
+  }
+  const hero = state.cast[state.lastActorIndex] || state.cast[0] || { name: 'Jemand' };
   const subject = hero.name;
+  pushHistory(state.history.subjects, subject, 4);
   const verbs = state.mode === 'meta'
-    ? ['schließt Tickets','sichtet Logs','ordnet Commits','strafft Module']
-    : ['spürt eine Spur','folgt dem Echo','notiert Hinweise','studiert Muster'];
+    ? ['schließt Tickets','sichtet Logs','ordnet Commits','strafft Module','stabilisiert Builds','entwirrt Abhängigkeiten','schärft Tests']
+    : ['spürt eine Spur','folgt dem Echo','notiert Hinweise','studiert Muster','kartiert die Gassen','entziffert Zeichen','sichert Spuren'];
   const verbsNeg = state.mode === 'meta'
-    ? ['verheddert sich','zweifelt am Ansatz','zögert','verliert Kontext']
-    : ['stolpert','zweifelt','zögert','verliert den Faden'];
+    ? ['verheddert sich','zweifelt am Ansatz','zögert','verliert Kontext','übersieht einen Check','bricht den Build']
+    : ['stolpert','zweifelt','zögert','verliert den Faden','irrt umher','verliert die Spur'];
+  const details = state.mode === 'meta'
+    ? ['einen schleichenden Leak','eine silent regression','eine wacklige Abhängigkeit','eine Schatten-Konfiguration','einen rissigen Contract','eine vergessene Flag']
+    : ['ein verborgenes Zeichen','eine leise Warnung','eine verdrehte Wahrheit','eine alte Narbe','ein fehlendes Puzzleteil','eine gedeckte Spur'];
   return {
     subject,
-    detail: pick(state.mode === 'meta'
-      ? ['einen schleichenden Leak','eine silent regression','eine wacklige Abhängigkeit','eine Schatten-Konfiguration']
-      : ['ein verborgenes Zeichen','eine leise Warnung','eine verdrehte Wahrheit','eine alte Narbe'], rand),
-    verb: pick(verbs, rand),
-    verbNeg: pick(verbsNeg, rand),
+    detail: pickDistinct(details, state.history.details, 4, rand),
+    verb: pickDistinct(verbs, state.history.verbs, 4, rand),
+    verbNeg: pickDistinct(verbsNeg, state.history.verbs, 4, rand),
   };
 }
 
@@ -484,4 +544,39 @@ function styleAffinity(accents, tallies) {
   let score = 0;
   for (const a of accents) score += (tallies[a]||0);
   return Math.log(1 + score);
+}
+
+function pushHistory(arr, value, maxLen) {
+  if (!Array.isArray(arr)) return;
+  arr.push(value);
+  if (arr.length > (maxLen||4)) arr.shift();
+}
+
+function pickDistinct(arr, historyArr, maxLen, rand) {
+  const hist = new Set(historyArr || []);
+  const candidates = arr.filter(v => !hist.has(v));
+  const pool = candidates.length ? candidates : arr;
+  return pool[Math.floor((rand?.()||Math.random()) * pool.length)];
+}
+
+function parseFreeIntent(text, state) {
+  if (!text) return null;
+  const t = String(text).toLowerCase().trim();
+  // Slash commands
+  if (t.startsWith('/')) {
+    if (t.startsWith('/untersuchen') || t.startsWith('/investigate')) return { intent: { kind: 'progress' } };
+    if (t.startsWith('/konfrontieren') || t.startsWith('/confront')) return { intent: { kind: 'reveal' } };
+    if (t.startsWith('/rückzug') || t.startsWith('/rollback') || t.startsWith('/zurueck')) return { intent: { kind: 'setback' } };
+    if (t.startsWith('/verbündeter') || t.startsWith('/verbuendeter') || t.startsWith('/ally')) return { intent: { kind: 'progress' } };
+    if (state.mode === 'meta') {
+      if (t.startsWith('/refactor')) return { intent: { kind: 'reveal' } };
+      if (t.startsWith('/review')) return { intent: { kind: 'progress' } };
+    }
+  }
+  // Verb heuristics
+  if (/(untersuchen|prüfen|suchen|analysieren|investigieren)/.test(t)) return { intent: { kind: 'progress' } };
+  if (/(konfrontieren|stellen|anreden|enthüllen|zeigen|aufdecken)/.test(t)) return { intent: { kind: 'reveal' } };
+  if (/(rückzug|zurückziehen|abwarten|fliehen|verstecken|rollback)/.test(t)) return { intent: { kind: 'setback' } };
+  if (/(fragen|befragen|reden|verhandeln|bitten)/.test(t)) return { intent: { kind: 'progress' } };
+  return null;
 }
