@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>KI Story-Weber – Interaktives Erzählen</title>
+    <meta name="description" content="Eine clientseitige KI-Story-Engine, die Autor, Erzähler, Leser und Figur zugleich spielt." />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <header class="app-header">
+      <h1>KI Story‑Weber</h1>
+      <p class="sub">Autor • Erzähler • Leser • Figur – alles im Browser, keine Server nötig.</p>
+    </header>
+
+    <main class="layout">
+      <section class="panel controls">
+        <div class="row">
+          <label for="seed">Idee/Prompt</label>
+          <input id="seed" placeholder="z.B. Nebel über einer verlassenen Küstenstadt" />
+        </div>
+        <div class="row">
+          <label for="genre">Genre</label>
+          <select id="genre">
+            <option value="mystery">Mystery</option>
+            <option value="fantasy">Fantasy</option>
+            <option value="sci-fi">Science-Fiction</option>
+            <option value="abenteuer">Abenteuer</option>
+            <option value="drama">Drama</option>
+          </select>
+        </div>
+        <div class="row">
+          <label for="perspective">Leser-Interjektionen</label>
+          <select id="perspective">
+            <option value="auto">Gelegentlich</option>
+            <option value="off">Aus</option>
+            <option value="on">Oft</option>
+          </select>
+        </div>
+        <div class="btn-row">
+          <button id="startBtn" class="primary">Neue Geschichte starten</button>
+          <button id="saveBtn">Speichern</button>
+          <button id="loadBtn">Laden</button>
+          <button id="resetBtn" class="ghost">Zurücksetzen</button>
+        </div>
+        <details class="hint">
+          <summary>Was ist das?</summary>
+          <p>
+            Diese Seite nutzt eine leichte, regelbasierte Story-Engine. Sie plant Beats (Autor), wählt Handlungen nach
+            Eigenschaften der Figuren (Figur), erzählt stilistisch (Erzähler) und kommentiert gelegentlich (Leser).
+            Alles passiert lokal im Browser – keine externen KI‑APIs.
+          </p>
+        </details>
+      </section>
+
+      <section class="panel story">
+        <div id="story" class="story-out"></div>
+
+        <div id="choices" class="choices"></div>
+
+        <div class="freeform">
+          <input id="freeInput" placeholder="Eigene Aktion / Wendung vorschlagen…" />
+          <button id="actBtn" class="secondary">Ausführen</button>
+        </div>
+      </section>
+    </main>
+
+    <footer class="app-footer">
+      <small>Clientseitig • Open Web • GitHub Pages‑freundlich</small>
+    </footer>
+
+    <script type="module">
+      import { StoryEngine } from './src/engine.mjs';
+
+      const els = {
+        seed: document.getElementById('seed'),
+        genre: document.getElementById('genre'),
+        perspective: document.getElementById('perspective'),
+        startBtn: document.getElementById('startBtn'),
+        saveBtn: document.getElementById('saveBtn'),
+        loadBtn: document.getElementById('loadBtn'),
+        resetBtn: document.getElementById('resetBtn'),
+        story: document.getElementById('story'),
+        choices: document.getElementById('choices'),
+        freeInput: document.getElementById('freeInput'),
+        actBtn: document.getElementById('actBtn'),
+      };
+
+      let engine = null;
+
+      function renderLog(log) {
+        els.story.innerHTML = '';
+        log.forEach(entry => {
+          const p = document.createElement('p');
+          p.textContent = entry;
+          els.story.appendChild(p);
+        });
+        els.story.scrollTop = els.story.scrollHeight;
+      }
+
+      function renderChoices(choices) {
+        els.choices.innerHTML = '';
+        if (!choices || choices.length === 0) return;
+        choices.forEach((c, idx) => {
+          const btn = document.createElement('button');
+          btn.className = 'choice';
+          btn.textContent = c.title;
+          btn.title = c.intent || '';
+          btn.addEventListener('click', () => {
+            engine.next({ type: 'choice', index: idx });
+          });
+          els.choices.appendChild(btn);
+        });
+      }
+
+      function boot() {
+        const seed = (els.seed.value || '').trim() || 'Ein rätselhafter Fund in der Nacht';
+        const genre = els.genre.value || 'mystery';
+        const readerMode = els.perspective.value || 'auto';
+        engine = new StoryEngine({ seed, genre, readerMode, language: 'de' });
+        engine.onUpdate((state) => {
+          renderLog(state.log);
+          renderChoices(state.choices);
+        });
+        engine.start();
+      }
+
+      els.startBtn.addEventListener('click', boot);
+      els.actBtn.addEventListener('click', () => {
+        const text = (els.freeInput.value || '').trim();
+        if (!text) return;
+        engine?.next({ type: 'free', text });
+        els.freeInput.value = '';
+      });
+      els.saveBtn.addEventListener('click', () => {
+        if (!engine) return;
+        const save = engine.save();
+        localStorage.setItem('ki-story-weber-save', JSON.stringify(save));
+      });
+      els.loadBtn.addEventListener('click', () => {
+        const raw = localStorage.getItem('ki-story-weber-save');
+        if (!raw) return;
+        try {
+          const data = JSON.parse(raw);
+          engine = new StoryEngine({ seed: data.seed, genre: data.genre, readerMode: data.readerMode, language: data.language });
+          engine.onUpdate((state) => {
+            renderLog(state.log);
+            renderChoices(state.choices);
+          });
+          engine.load(data);
+        } catch (e) {
+          console.error('Laden fehlgeschlagen', e);
+        }
+      });
+      els.resetBtn.addEventListener('click', () => {
+        engine = null;
+        els.story.innerHTML = '';
+        els.choices.innerHTML = '';
+        document.title = 'KI Story-Weber – Interaktives Erzählen';
+      });
+    </script>
+  </body>
+  </html>
