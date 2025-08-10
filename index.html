@@ -141,8 +141,7 @@
         <div class="row advanced">
           <label for="mode">Modus</label>
           <select id="mode">
-            <option value="story">Geschichte</option>
-            <option value="meta">Meta (Website/Programmierer/Nutzer)</option>
+            <option value="story" selected>Geschichte</option>
           </select>
         </div>
         <div class="row advanced">
@@ -227,18 +226,16 @@
         <div id="choices" class="choices"></div>
 
         <div class="freeform">
-          <input id="freeInput" placeholder="Eigene Aktion / Wendung … z. B. 'untersuchen', 'konfrontieren', 'fragen' oder Slash: /untersuchen, /rollback (Meta)" />
+          <input id="freeInput" placeholder="Eigene Aktion … z. B. 'untersuchen', 'konfrontieren', 'fragen' oder /untersuchen" />
           <button id="actBtn" class="secondary">Ausführen</button>
         </div>
-        <div class="chips">
+        <div class="chips advanced">
           <button class="chip" data-free="/untersuchen Bereich">Untersuchen</button>
           <button class="chip" data-free="/konfrontieren Figur">Konfrontieren</button>
           <button class="chip" data-free="/fragen Hinweis">Fragen</button>
           <button class="chip" data-free="/verbündeter suchen">Verbündeten suchen</button>
           <button class="chip" data-free="/rückzug">Rückzug</button>
-          <button class="chip advanced" data-free="/refactor (meta)">Meta: Refactor</button>
-          <button class="chip advanced" data-free="/review (meta)">Meta: Review</button>
-          <button class="chip advanced" data-free="/rollback (meta)">Meta: Rollback</button>
+          <!-- Meta-Befehle vorerst verborgen -->
         </div>
         <div class="hint advanced" style="margin-top:6px">
           Tipp: Verwende starke Verben oder Slash‑Befehle. Die KI interpretiert <code>/untersuchen</code> als Fortschritt,
@@ -327,7 +324,10 @@
       function renderChoices(choices) {
         els.choices.innerHTML = '';
         if (!choices || choices.length === 0) return;
+        const seen = new Set();
         choices.forEach((c, idx) => {
+          if (seen.has(c.title)) return; // Duplikate ausblenden
+          seen.add(c.title);
           const btn = document.createElement('button');
           btn.className = 'choice';
           const eff = c.effects || {};
@@ -336,9 +336,8 @@
             eff.tension ? `Spannung ${eff.tension>0?'+':''}${(eff.tension*100)|0}%` : null,
             eff.threat ? `Gefahr ${eff.threat>0?'+':''}${(eff.threat*100)|0}%` : null,
           ].filter(Boolean).join(' · ');
-          const accents = (c.accents||[]).map(a=>`#${a}`).join(' ');
-          btn.textContent = effTxt ? `${c.title} — ${c.risk||'?'} ${accents}` : `${c.title} ${accents}`;
-          btn.title = effTxt || '';
+          btn.textContent = c.title; // kompakter Text
+          btn.title = effTxt || (c.risk ? `Risiko: ${c.risk}` : '');
           btn.addEventListener('click', () => {
             engine.next({ type: 'choice', index: idx });
           });
@@ -402,7 +401,7 @@
         const seed = (els.seed.value || '').trim() || 'Ein rätselhafter Fund in der Nacht';
         const genre = els.genre.value || 'mystery';
   const freedom = Math.max(0, Math.min(1, (Number(els.freedom.value)||0)/100));
-        const mode = els.mode.value || 'story';
+  const mode = 'story';
         const complexity = els.complexity.value || 'normal';
         const readerMode = els.perspective.value || 'auto';
   const aiProfile = els.aiProfile.value || 'balanced';

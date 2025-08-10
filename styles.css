@@ -5,7 +5,7 @@ body{margin:0;font-family:Inter,system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-s
 .app-header{padding:20px 16px 6px; text-align:center}
 .app-header h1{margin:0;font-weight:800;letter-spacing:.2px}
 .app-header .sub{margin:6px 0 0;color:var(--muted)}
-.layout{display:grid;grid-template-columns:360px 1fr;gap:16px;max-width:1100px;margin:10px auto;padding:0 12px}
+.layout{display:grid;grid-template-columns:320px 1fr;gap:16px;max-width:1200px;margin:10px auto;padding:0 12px}
 .panel{background:var(--panel);border:1px solid rgba(255,255,255,.06);border-radius:12px;padding:14px;box-shadow:0 8px 30px rgba(0,0,0,.3)}
 .controls .row{display:flex;flex-direction:column;margin-bottom:10px}
 .tabs{display:flex;gap:6px;margin-bottom:10px}
@@ -27,7 +27,7 @@ button:hover{transform:translateY(-1px);filter:brightness(1.1)}
 .hint{margin-top:8px;color:var(--muted)}
 .profile{font-size:.95rem}
 .profile .filebtn{display:inline-flex;align-items:center;gap:6px;background:#1a2330;border-radius:10px;padding:10px 12px;cursor:pointer}
-.story{display:flex;flex-direction:column;height:70vh}
+.story{display:flex;flex-direction:column;height:74vh}
 .statusbar{display:flex;gap:12px;justify-content:space-between;margin-bottom:8px;color:var(--muted);font-size:.9rem}
 .world-bars{display:grid;grid-template-columns:1fr;gap:6px;margin:6px 0 10px}
 .world-bars .bar{display:grid;grid-template-columns:92px 1fr;align-items:center;gap:8px}
@@ -39,8 +39,9 @@ button:hover{transform:translateY(-1px);filter:brightness(1.1)}
 .insights{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:6px 0 10px}
 .insights-box{white-space:pre-wrap;border:1px dashed rgba(255,255,255,.12);padding:8px 10px;border-radius:10px;color:var(--muted)}
 .story-out{flex:1;overflow:auto;padding:8px 10px;border:1px solid rgba(255,255,255,.06);border-radius:10px;background:#0c121a}
-.story-out p{margin:0 0 10px;line-height:1.4}
+.story-out p{margin:0 0 10px;line-height:1.5}
 .choices{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0}
+.choices .choice{font-size:.95rem}
 .chips{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 0}
 .chip{font-size:.9rem;background:#0e141c;border:1px solid rgba(255,255,255,.08);border-radius:999px;padding:6px 10px}
 .freeform{display:flex;gap:8px}
