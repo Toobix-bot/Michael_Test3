@@ -33,6 +33,10 @@
           </select>
         </div>
         <div class="row">
+          <label for="freedom">Kreative Freiheit <small id="freedomVal" style="color:var(--muted)"></small></label>
+          <input id="freedom" type="range" min="0" max="100" value="40" />
+        </div>
+        <div class="row">
           <label for="mode">Modus</label>
           <select id="mode">
             <option value="story">Geschichte</option>
@@ -95,6 +99,24 @@
           <span id="statusWorld"></span>
           <span id="statusCast"></span>
         </div>
+        <div class="world-bars">
+          <div class="bar"><span>Hoffnung</span><div class="track"><div class="fill hope" id="barHope"></div></div></div>
+          <div class="bar"><span>Spannung</span><div class="track"><div class="fill tension" id="barTension"></div></div></div>
+          <div class="bar"><span>Gefahr</span><div class="track"><div class="fill threat" id="barThreat"></div></div></div>
+        </div>
+        <div class="insights">
+          <div>
+            <strong>KI-Mitspieler</strong>
+            <div class="btn-row">
+              <button id="aiSuggestBtn">Vorschlag</button>
+              <button id="aiAutoBtn" class="ghost">Auto (1 Schritt)</button>
+            </div>
+          </div>
+          <div>
+            <strong>Hinweise</strong>
+            <div id="insightsBox" class="insights-box"></div>
+          </div>
+        </div>
         <div id="story" class="story-out"></div>
 
         <div id="choices" class="choices"></div>
@@ -117,6 +139,8 @@
       const els = {
         seed: document.getElementById('seed'),
         genre: document.getElementById('genre'),
+  freedom: document.getElementById('freedom'),
+  freedomVal: document.getElementById('freedomVal'),
   mode: document.getElementById('mode'),
   complexity: document.getElementById('complexity'),
         perspective: document.getElementById('perspective'),
@@ -124,6 +148,8 @@
         saveBtn: document.getElementById('saveBtn'),
         loadBtn: document.getElementById('loadBtn'),
         resetBtn: document.getElementById('resetBtn'),
+  aiSuggestBtn: document.getElementById('aiSuggestBtn'),
+  aiAutoBtn: document.getElementById('aiAutoBtn'),
   exportBtn: document.getElementById('exportBtn'),
   importInput: document.getElementById('importInput'),
   resetProfileBtn: document.getElementById('resetProfileBtn'),
@@ -132,8 +158,12 @@
   statusChapter: document.getElementById('statusChapter'),
   statusWorld: document.getElementById('statusWorld'),
   statusCast: document.getElementById('statusCast'),
+  barHope: document.getElementById('barHope'),
+  barTension: document.getElementById('barTension'),
+  barThreat: document.getElementById('barThreat'),
         freeInput: document.getElementById('freeInput'),
         actBtn: document.getElementById('actBtn'),
+  insightsBox: document.getElementById('insightsBox'),
       };
 
       let engine = null;
@@ -161,7 +191,8 @@
             eff.tension ? `Spannung ${eff.tension>0?'+':''}${(eff.tension*100)|0}%` : null,
             eff.threat ? `Gefahr ${eff.threat>0?'+':''}${(eff.threat*100)|0}%` : null,
           ].filter(Boolean).join(' · ');
-          btn.textContent = effTxt ? `${c.title} — ${c.risk||'?'}` : c.title;
+          const accents = (c.accents||[]).map(a=>`#${a}`).join(' ');
+          btn.textContent = effTxt ? `${c.title} — ${c.risk||'?'} ${accents}` : `${c.title} ${accents}`;
           btn.title = effTxt || '';
           btn.addEventListener('click', () => {
             engine.next({ type: 'choice', index: idx });
@@ -178,22 +209,44 @@
         els.pAch.textContent = `Errungenschaften: ${profile.achievements.join(', ') || '–'}`;
       }
 
+      function renderInsights() {
+        if (!engine) { els.insightsBox.textContent = ''; return; }
+        const i = engine.getInsights();
+        const dist = i.distribution;
+        const sug = i.suggestion;
+        const cast = i.castTraits.map(ct => `${ct.name}: ${ct.traits.join(', ')}`).join(' | ');
+        const lines = [];
+        lines.push(`Beats (Prognose): reveal ${(dist.reveal*100)|0}% · progress ${(dist.progress*100)|0}% · setback ${(dist.setback*100)|0}% · choice ${(dist.choice*100)|0}%`);
+        lines.push(`Figuren: ${cast}`);
+        if (sug?.ties?.length) {
+          const names = sug.ties.map(t => t.title).join(' | ');
+          lines.push(`Mehrere gute Optionen: ${names}`);
+          lines.push(`Begründung: ${sug.rationale}`);
+        }
+        els.insightsBox.textContent = lines.join('\n');
+      }
+
       function renderStatus(state) {
         els.statusChapter.textContent = `Kapitel ${state.chapter}/${state.maxChapters}`;
         const w = state.world;
         els.statusWorld.textContent = `Hoffnung ${(w.hope*100)|0}% · Spannung ${(w.tension*100)|0}% · Gefahr ${(w.threat*100)|0}%`;
         const cast = (state.cast||[]).map(c => `${c.name} (${c.role})`).join(', ');
         els.statusCast.textContent = `Figuren: ${cast}`;
+  els.barHope.style.width = `${Math.round(w.hope*100)}%`;
+  els.barTension.style.width = `${Math.round(w.tension*100)}%`;
+  els.barThreat.style.width = `${Math.round(w.threat*100)}%`;
+  renderInsights();
       }
 
       function boot() {
         const seed = (els.seed.value || '').trim() || 'Ein rätselhafter Fund in der Nacht';
         const genre = els.genre.value || 'mystery';
+  const freedom = Math.max(0, Math.min(1, (Number(els.freedom.value)||0)/100));
         const mode = els.mode.value || 'story';
         const complexity = els.complexity.value || 'normal';
         const readerMode = els.perspective.value || 'auto';
-        const carry = applyCarryoverOptions(profile);
-        engine = new StoryEngine({ seed, genre, mode, complexity, readerMode, language: 'de', boosts: carry.boosts, onEnd: (result) => {
+  const carry = applyCarryoverOptions(profile);
+  engine = new StoryEngine({ seed, genre, freedom, mode, complexity, readerMode, language: 'de', boosts: carry.boosts, explain: true, onEnd: (result) => {
           profile = applyRunResultToProfile(profile, result);
           renderProfile();
         }});
@@ -222,7 +275,8 @@
         if (!raw) return;
         try {
           const data = JSON.parse(raw);
-          engine = new StoryEngine({ seed: data.seed, genre: data.genre, mode: data.mode, complexity: data.complexity, readerMode: data.readerMode, language: data.language });
+          els.freedom.value = String(Math.round((data.freedom ?? 0.4)*100));
+          engine = new StoryEngine({ seed: data.seed, genre: data.genre, freedom: data.freedom, mode: data.mode, complexity: data.complexity, readerMode: data.readerMode, language: data.language });
           engine.onUpdate((state) => {
             renderLog(state.log);
             renderChoices(state.choices);
@@ -240,6 +294,17 @@
         document.title = 'KI Story-Weber – Interaktives Erzählen';
       });
 
+      // AI co-player buttons
+      els.aiSuggestBtn.addEventListener('click', () => {
+        renderInsights();
+      });
+      els.aiAutoBtn.addEventListener('click', () => {
+        const s = engine?.getInsights?.();
+        if (s?.suggestion) {
+          engine.next({ type: 'choice', index: s.suggestion.index });
+        }
+      });
+
       // profile buttons
       els.exportBtn.addEventListener('click', () => exportProfile());
       els.importInput.addEventListener('change', async (e) => {
@@ -251,7 +316,10 @@
       els.resetProfileBtn.addEventListener('click', () => { resetProfile(); profile = loadProfile(); renderProfile(); });
 
       // initial render
-      renderProfile();
+  renderProfile();
+  const updateFreedomLabel = () => { els.freedomVal.textContent = `${els.freedom.value}%`; };
+  els.freedom.addEventListener('input', updateFreedomLabel);
+  updateFreedomLabel();
     </script>
   </body>
   </html>

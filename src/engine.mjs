@@ -38,13 +38,18 @@ export class StoryEngine {
       choices: [],
       cast: [],
       world: { tension: 0.2, hope: 0.5, threat: 0.2 },
+  freedom: 0.4,
+  accentTallies: { insight: 0, bold: 0, caution: 0, momentum: 0, empathy: 0 },
     };
     this._listeners = [];
     this._rand = rng(hashString(`${this.state.seed}|${this.state.genre}`));
     this._author = new AuthorAgent(this._rand);
     this._narrator = new NarratorAgent(this._rand);
     this._reader = new ReaderAgent(this._rand);
-    this._onEnd = opts.onEnd || null;
+  this._onEnd = opts.onEnd || null;
+  this._freedom = typeof opts.freedom === 'number' ? Math.max(0, Math.min(1, opts.freedom)) : 0.4;
+  this.state.freedom = this._freedom;
+  this._explain = !!opts.explain;
     // apply boosts (carryover)
     const boosts = opts.boosts || {};
     this.state.world.hope = clamp01(this.state.world.hope + (boosts.startHope||0));
@@ -71,13 +76,13 @@ export class StoryEngine {
     if (input.type === 'choice') {
       const c = this.state.choices[input.index];
       if (!c) return;
-      this._advance(c.intent, c.target);
+      this._advance(c.intent, c.target, { selected: c });
     } else if (input.type === 'free') {
       this._advance({ kind: 'user', text: input.text });
     }
   }
 
-  _advance(intent, target) {
+  _advance(intent, target, meta) {
     // Chapter transition
     const beatsPerChapter = this._beatsPerChapter();
     if (this.state.step >= beatsPerChapter) {
@@ -96,7 +101,8 @@ export class StoryEngine {
       this.state.log.push(this._narrator.tell({ type: 'chapterStart', hook }, this.state));
     }
 
-    const beat = this._author.nextBeat(this.state, intent, target);
+  const before = { ...this.state.world };
+  const beat = this._author.nextBeat(this.state, intent, target);
   const act = chooseActionForBeat(beat, this.state, this._rand);
     const line = this._narrator.tell({ beat, act }, this.state);
     this.state.log.push(line);
@@ -106,6 +112,16 @@ export class StoryEngine {
     if (beat.kind === 'setback') { this.state.world.hope -= 0.05; this.state.world.threat += 0.05; }
     if (beat.kind === 'progress') { this.state.world.hope += 0.05; this.state.world.tension -= 0.02; }
     clampWorld(this.state.world);
+    if (meta?.selected?.accents) {
+      for (const a of meta.selected.accents) {
+        if (a in this.state.accentTallies) this.state.accentTallies[a] += 1;
+      }
+    }
+    if (this._explain) {
+      const dw = deltas(before, this.state.world);
+      const explain = explainDelta(dw);
+      if (explain) this.state.log.push(explain);
+    }
 
     this.state.step += 1;
     if (beat?.final) {
@@ -115,6 +131,41 @@ export class StoryEngine {
     this.state.choices = this._author.offerChoices(this.state);
     this._maybeReaderInterject('advance');
     this._emit();
+  }
+
+  // Provide suggestions set for the next choice (multi-objective, allow ties)
+  suggestChoice() {
+    const state = this.state;
+    if (!state.choices || state.choices.length === 0) return null;
+    const targetTension = 0.4 + (this._freedom - 0.5) * 0.1; // slight drift with freedom
+    const scored = state.choices.map((c, idx) => {
+      const eff = c.effects || computeEffects(c.intent);
+      const hope = eff.hope || 0, tens = eff.tension || 0, thr = eff.threat || 0;
+      const predTension = clamp01(state.world.tension + tens);
+      // multi-objective: value safety, momentum, and style diversity
+      const safety = -thr;
+      const momentum = hope - Math.max(0, tens*0.5);
+      const tensionFit = -Math.abs(targetTension - predTension);
+      const style = styleAffinity(c.accents, this.state.accentTallies);
+      const score = 2.5*momentum + 2.0*safety + 1.0*tensionFit + 0.5*style;
+      const isBad = (thr > 0.06 && hope < 0.02);
+      return { idx, score, c, eff, predTension, isBad };
+    }).sort((a,b)=>b.score-a.score);
+    if (scored.length === 0) return null;
+    const best = scored[0].score;
+    const eps = 0.15; // near-equal threshold -> mehrere gleich gute Akzente
+    const ties = scored.filter(x => !x.isBad && (best - x.score) <= eps);
+    const rationale = `Mehrere gleich gute Wege: Balance aus Hoffnung, geringer Gefahr und Spannungsziel bei ${Math.round(targetTension*100)}%.`;
+    return { ties: ties.map(t => ({ index: t.idx, title: t.c.title, accents: t.c.accents })), rationale, scored };
+  }
+
+  // Insights for UI: forecast and context
+  getInsights() {
+    const s = this.state;
+    const dist = forecastBeatDist(this._freedom, s.world);
+    const suggestion = this.suggestChoice();
+    const castTraits = (s.cast||[]).map(x=>({ name: x.name, traits: x.traits }));
+    return { distribution: dist, suggestion, castTraits };
   }
 
   _maybeReaderInterject(phase) {
@@ -155,11 +206,13 @@ export class StoryEngine {
     const balance = Math.round((s.world.hope * 100) - (s.world.threat * 50) - (s.world.tension * 30));
     const chapters = s.chapter - 1 + (s.step > 0 ? 1 : 0);
     const score = clampToRange(balance + chapters * 5, 0, 100);
-    const achievements = [];
+  const achievements = [];
     if (s.world.hope > 0.7) achievements.push('BeaconOfHope');
     if (s.world.threat < 0.15) achievements.push('TamedTheStorm');
     if (chapters >= s.maxChapters) achievements.push('LongJourney');
-    const relic = pick(['Seher-Scherbe','Kernfragment','Alte Karte','Build-Talisman'], this._rand);
+  if ((s.step + chapters) >= 12) achievements.push('MarathonMind');
+  if (this._freedom >= 0.8) achievements.push('WildImprov');
+  const relic = pick(['Seher-Scherbe','Kernfragment','Alte Karte','Build-Talisman','Archiv-Klammer','Refactor-Feder'], this._rand);
     const ending = reason === 'epilog' ? 'Epilog' : 'Ausklang';
     const result = {
       seed: s.seed,
@@ -175,7 +228,7 @@ export class StoryEngine {
     this.state.log.push(this._narrator.tell({ type: 'runEnd', result }, this.state));
     this.state.choices = [];
     this._emit();
-    if (this._onEnd) this._onEnd(result);
+  if (this._onEnd) this._onEnd(result);
   }
 }
 
@@ -203,9 +256,12 @@ class AuthorAgent {
   }
   nextBeat(state, intent, target) {
     if (intent?.kind === 'user') return { kind: 'user', text: intent.text, target };
-    const r = this.rand();
-    const opts = ['reveal','progress','setback','choice'];
-    const kind = opts[Math.floor(r*opts.length)];
+  const r = this.rand();
+  // vary distribution by freedom (mehr Freiheit -> mehr reveal/choice)
+  const base = ['reveal','progress','setback','choice'];
+  const more = this.rand() < (0.5 * (state?.freedom ?? 0.4)) ? ['reveal','choice'] : [];
+  const opts = base.concat(more);
+  const kind = opts[Math.floor(r*opts.length)];
     return { kind, target };
   }
   offerChoices(state) {
@@ -213,16 +269,19 @@ class AuthorAgent {
     if (state.chapter > state.maxChapters) {
       return [ { title: 'Epilog', intent: { kind: 'progress', final: true }, effects: { hope:+0.1, threat:-0.05, tension:-0.1 }, risk: 'niedrig' } ];
     }
-    const pool = [
+  const pool = [
       { title: labelByMode(state, 'Untersuchen', 'Debuggen'), intent: { kind: 'progress' } },
       { title: labelByMode(state, 'Konfrontieren', 'Refactor erzwingen'), intent: { kind: 'reveal' } },
       { title: labelByMode(state, 'Rückzug', 'Rollback'), intent: { kind: 'setback' } },
       { title: labelByMode(state, 'Verbündeten suchen', 'Review einholen'), intent: { kind: 'progress' } },
     ];
-    const choices = shuffle(pool, this.rand).slice(0, 3).map(c => {
+  // With higher freedom, offer 4 choices sometimes
+  const count = (state?.freedom ?? 0.4) > 0.6 && this.rand() > 0.5 ? 4 : 3;
+    const choices = shuffle(pool, this.rand).slice(0, count).map(c => {
       const effects = computeEffects(c.intent);
       const risk = riskLabel(effects);
-      return { ...c, effects, risk };
+      const accents = classifyAccents(c.intent, effects);
+      return { ...c, effects, risk, accents };
     });
     return choices;
   }
@@ -358,6 +417,38 @@ function clampWorld(w) {
 function clamp01(x){ return Math.max(0, Math.min(1, x)); }
 function clampToRange(x, lo, hi){ return Math.max(lo, Math.min(hi, x)); }
 
+function deltas(before, after) {
+  return {
+    hope: +(after.hope - before.hope).toFixed(3),
+    tension: +(after.tension - before.tension).toFixed(3),
+    threat: +(after.threat - before.threat).toFixed(3)
+  };
+}
+
+function explainDelta(d) {
+  const parts = [];
+  if (d.hope) parts.push(`Hoffnung ${d.hope>0?'+':''}${Math.round(d.hope*100)}%`);
+  if (d.tension) parts.push(`Spannung ${d.tension>0?'+':''}${Math.round(d.tension*100)}%`);
+  if (d.threat) parts.push(`Gefahr ${d.threat>0?'+':''}${Math.round(d.threat*100)}%`);
+  if (parts.length === 0) return '';
+  return `(Auswirkung: ${parts.join(' · ')})`;
+}
+
+function forecastBeatDist(freedom, world) {
+  // very rough forecast used for UI hints
+  const base = { reveal: 0.25, progress: 0.35, setback: 0.25, choice: 0.15 };
+  const f = freedom||0;
+  base.reveal += 0.15*f;
+  base.choice += 0.10*f;
+  // higher tension nudges toward setbacks, lower toward progress
+  base.setback += (world.tension - 0.5) * 0.1;
+  base.progress += (0.5 - world.tension) * 0.1;
+  // normalize
+  const sum = Object.values(base).reduce((a,b)=>a+b,0);
+  for (const k of Object.keys(base)) base[k] = Math.max(0, base[k]/sum);
+  return base;
+}
+
 function computeEffects(intent) {
   switch (intent?.kind) {
     case 'progress': return { hope: +0.06, tension: -0.02, threat: -0.01 };
@@ -376,4 +467,21 @@ function riskLabel(eff) {
 
 function labelByMode(state, story, meta) {
   return state.mode === 'meta' ? meta : story;
+}
+
+function classifyAccents(intent, eff) {
+  const a = [];
+  if (intent?.kind === 'reveal') a.push('insight');
+  if (intent?.kind === 'progress' && (eff.hope||0) > 0.04) a.push('momentum');
+  if (intent?.kind === 'setback' && (eff.threat||0) < 0.03) a.push('caution');
+  if ((eff.hope||0) > 0.05 && (eff.tension||0) < 0.02) a.push('empathy');
+  if (intent?.kind === 'reveal' && (eff.tension||0) > 0.04) a.push('bold');
+  return a.length ? a : ['momentum'];
+}
+
+function styleAffinity(accents, tallies) {
+  if (!accents || accents.length === 0) return 0;
+  let score = 0;
+  for (const a of accents) score += (tallies[a]||0);
+  return Math.log(1 + score);
 }
