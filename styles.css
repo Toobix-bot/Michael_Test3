@@ -18,7 +18,10 @@ button.ghost{background:transparent;border:1px solid rgba(255,255,255,.16)}
 button.choice{background:#0f1622;border:1px solid rgba(255,255,255,.08)}
 button:hover{transform:translateY(-1px);filter:brightness(1.1)}
 .hint{margin-top:8px;color:var(--muted)}
+.profile{font-size:.95rem}
+.profile .filebtn{display:inline-flex;align-items:center;gap:6px;background:#1a2330;border-radius:10px;padding:10px 12px;cursor:pointer}
 .story{display:flex;flex-direction:column;height:70vh}
+.statusbar{display:flex;gap:12px;justify-content:space-between;margin-bottom:8px;color:var(--muted);font-size:.9rem}
 .story-out{flex:1;overflow:auto;padding:8px 10px;border:1px solid rgba(255,255,255,.06);border-radius:10px;background:#0c121a}
 .story-out p{margin:0 0 10px;line-height:1.4}
 .choices{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0}

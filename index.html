@@ -17,7 +17,7 @@
     </header>
 
     <main class="layout">
-      <section class="panel controls">
+  <section class="panel controls">
         <div class="row">
           <label for="seed">Idee/Prompt</label>
           <input id="seed" placeholder="z.B. Nebel über einer verlassenen Küstenstadt" />
@@ -30,6 +30,21 @@
             <option value="sci-fi">Science-Fiction</option>
             <option value="abenteuer">Abenteuer</option>
             <option value="drama">Drama</option>
+          </select>
+        </div>
+        <div class="row">
+          <label for="mode">Modus</label>
+          <select id="mode">
+            <option value="story">Geschichte</option>
+            <option value="meta">Meta (Website/Programmierer/Nutzer)</option>
+          </select>
+        </div>
+        <div class="row">
+          <label for="complexity">Kapitel-Länge</label>
+          <select id="complexity">
+            <option value="short">Kurz</option>
+            <option value="normal" selected>Mittel</option>
+            <option value="long">Lang</option>
           </select>
         </div>
         <div class="row">
@@ -54,9 +69,32 @@
             Alles passiert lokal im Browser – keine externen KI‑APIs.
           </p>
         </details>
+
+        <hr style="border:none;border-top:1px solid rgba(255,255,255,.08);margin:10px 0" />
+        <h3 style="margin:6px 0 8px;font-size:1rem;color:var(--muted)">Profil & Fortschritt</h3>
+        <div id="profileBox" class="profile">
+          <div class="row"><span id="pRuns"></span></div>
+          <div class="row"><span id="pBest"></span></div>
+          <div class="row"><span id="pPerks"></span></div>
+          <div class="row"><span id="pRelics"></span></div>
+          <div class="row"><span id="pAch"></span></div>
+          <div class="btn-row">
+            <button id="exportBtn">Export</button>
+            <label class="filebtn">
+              Import
+              <input id="importInput" type="file" accept="application/json" hidden />
+            </label>
+            <button id="resetProfileBtn" class="ghost">Profil zurücksetzen</button>
+          </div>
+        </div>
       </section>
 
       <section class="panel story">
+        <div class="statusbar">
+          <span id="statusChapter"></span>
+          <span id="statusWorld"></span>
+          <span id="statusCast"></span>
+        </div>
         <div id="story" class="story-out"></div>
 
         <div id="choices" class="choices"></div>
@@ -73,23 +111,33 @@
     </footer>
 
     <script type="module">
-      import { StoryEngine } from './src/engine.mjs';
+  import { StoryEngine } from './src/engine.mjs';
+  import { loadProfile, saveProfile, resetProfile, exportProfile, importProfile, applyCarryoverOptions, applyRunResultToProfile } from './src/profile.mjs';
 
       const els = {
         seed: document.getElementById('seed'),
         genre: document.getElementById('genre'),
+  mode: document.getElementById('mode'),
+  complexity: document.getElementById('complexity'),
         perspective: document.getElementById('perspective'),
         startBtn: document.getElementById('startBtn'),
         saveBtn: document.getElementById('saveBtn'),
         loadBtn: document.getElementById('loadBtn'),
         resetBtn: document.getElementById('resetBtn'),
+  exportBtn: document.getElementById('exportBtn'),
+  importInput: document.getElementById('importInput'),
+  resetProfileBtn: document.getElementById('resetProfileBtn'),
         story: document.getElementById('story'),
         choices: document.getElementById('choices'),
+  statusChapter: document.getElementById('statusChapter'),
+  statusWorld: document.getElementById('statusWorld'),
+  statusCast: document.getElementById('statusCast'),
         freeInput: document.getElementById('freeInput'),
         actBtn: document.getElementById('actBtn'),
       };
 
       let engine = null;
+  let profile = loadProfile();
 
       function renderLog(log) {
         els.story.innerHTML = '';
@@ -107,8 +155,14 @@
         choices.forEach((c, idx) => {
           const btn = document.createElement('button');
           btn.className = 'choice';
-          btn.textContent = c.title;
-          btn.title = c.intent || '';
+          const eff = c.effects || {};
+          const effTxt = [
+            eff.hope ? `Hoffnung ${eff.hope>0?'+':''}${(eff.hope*100)|0}%` : null,
+            eff.tension ? `Spannung ${eff.tension>0?'+':''}${(eff.tension*100)|0}%` : null,
+            eff.threat ? `Gefahr ${eff.threat>0?'+':''}${(eff.threat*100)|0}%` : null,
+          ].filter(Boolean).join(' · ');
+          btn.textContent = effTxt ? `${c.title} — ${c.risk||'?'}` : c.title;
+          btn.title = effTxt || '';
           btn.addEventListener('click', () => {
             engine.next({ type: 'choice', index: idx });
           });
@@ -116,14 +170,37 @@
         });
       }
 
+      function renderProfile() {
+        els.pRuns.textContent = `Runs gesamt: ${profile.totalRuns} · Kapitel gesamt: ${profile.totalChapters}`;
+        els.pBest.textContent = `Bester Score: ${profile.bestScore}`;
+        els.pPerks.textContent = `Perks: ${profile.perks.join(', ') || '–'}`;
+        els.pRelics.textContent = `Relikte: ${profile.relics.join(', ') || '–'}`;
+        els.pAch.textContent = `Errungenschaften: ${profile.achievements.join(', ') || '–'}`;
+      }
+
+      function renderStatus(state) {
+        els.statusChapter.textContent = `Kapitel ${state.chapter}/${state.maxChapters}`;
+        const w = state.world;
+        els.statusWorld.textContent = `Hoffnung ${(w.hope*100)|0}% · Spannung ${(w.tension*100)|0}% · Gefahr ${(w.threat*100)|0}%`;
+        const cast = (state.cast||[]).map(c => `${c.name} (${c.role})`).join(', ');
+        els.statusCast.textContent = `Figuren: ${cast}`;
+      }
+
       function boot() {
         const seed = (els.seed.value || '').trim() || 'Ein rätselhafter Fund in der Nacht';
         const genre = els.genre.value || 'mystery';
+        const mode = els.mode.value || 'story';
+        const complexity = els.complexity.value || 'normal';
         const readerMode = els.perspective.value || 'auto';
-        engine = new StoryEngine({ seed, genre, readerMode, language: 'de' });
+        const carry = applyCarryoverOptions(profile);
+        engine = new StoryEngine({ seed, genre, mode, complexity, readerMode, language: 'de', boosts: carry.boosts, onEnd: (result) => {
+          profile = applyRunResultToProfile(profile, result);
+          renderProfile();
+        }});
         engine.onUpdate((state) => {
           renderLog(state.log);
           renderChoices(state.choices);
+          renderStatus(state);
         });
         engine.start();
       }
@@ -145,10 +222,11 @@
         if (!raw) return;
         try {
           const data = JSON.parse(raw);
-          engine = new StoryEngine({ seed: data.seed, genre: data.genre, readerMode: data.readerMode, language: data.language });
+          engine = new StoryEngine({ seed: data.seed, genre: data.genre, mode: data.mode, complexity: data.complexity, readerMode: data.readerMode, language: data.language });
           engine.onUpdate((state) => {
             renderLog(state.log);
             renderChoices(state.choices);
+            renderStatus(state);
           });
           engine.load(data);
         } catch (e) {
@@ -161,6 +239,19 @@
         els.choices.innerHTML = '';
         document.title = 'KI Story-Weber – Interaktives Erzählen';
       });
+
+      // profile buttons
+      els.exportBtn.addEventListener('click', () => exportProfile());
+      els.importInput.addEventListener('change', async (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        profile = await importProfile(file);
+        renderProfile();
+      });
+      els.resetProfileBtn.addEventListener('click', () => { resetProfile(); profile = loadProfile(); renderProfile(); });
+
+      // initial render
+      renderProfile();
     </script>
   </body>
   </html>
