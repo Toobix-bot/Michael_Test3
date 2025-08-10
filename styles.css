@@ -8,6 +8,11 @@ body{margin:0;font-family:Inter,system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-s
 .layout{display:grid;grid-template-columns:360px 1fr;gap:16px;max-width:1100px;margin:10px auto;padding:0 12px}
 .panel{background:var(--panel);border:1px solid rgba(255,255,255,.06);border-radius:12px;padding:14px;box-shadow:0 8px 30px rgba(0,0,0,.3)}
 .controls .row{display:flex;flex-direction:column;margin-bottom:10px}
+.tabs{display:flex;gap:6px;margin-bottom:10px}
+.tab{padding:8px 10px;border-radius:10px;background:#0e141c;border:1px solid rgba(255,255,255,.12);cursor:pointer}
+.tab.active{background:linear-gradient(135deg,var(--accent),#428bff);color:#001128;font-weight:700;border-color:transparent}
+.tab-panel{display:none}
+.tab-panel.active{display:block}
 .controls label{font-size:.9rem;color:var(--muted);margin-bottom:6px}
 .controls input, .controls select{padding:10px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.08);background:#0e141c;color:var(--fg)}
 .btn-row{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
@@ -44,6 +49,11 @@ button:hover{transform:translateY(-1px);filter:brightness(1.1)}
 .statusbar #menuBtn{margin-left:auto;padding:6px 10px;border-radius:8px}
 button[disabled]{opacity:.5;cursor:not-allowed;filter:none;transform:none}
 @media (max-width: 900px){.layout{grid-template-columns:1fr}.story{height:65vh}}
+
+/* simple vs advanced */
+body.simple .advanced{display:none !important}
+/* tighten hints in simple */
+body.simple details.hint{margin-top:6px}
 
 /* overlay menu */
 .hidden{display:none !important}

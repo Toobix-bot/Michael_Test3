@@ -10,6 +10,7 @@ Eine leichte, clientseitige Story-Engine, die die Rollen Autor, Erzähler, Leser
 
 - Idee/Prompt eingeben, Genre wählen und auf „Neue Geschichte starten“ klicken.
 - Unter dem Prompt-Feld findest du Vorschlags‑Chips (z. B. Mystery: Leuchtturm‑SOS, Sci‑Fi: Zukunftssignal) zum schnellen Start.
+- Tabs oben links: Start, Profil & Laden, Einstellungen.
 - Modus „Geschichte“ (klassisch) oder „Meta“ (Website/Programmierer/Nutzer) wählen.
 - Kapitel-Länge (Kurz/Mittel/Lang) steuert Beats pro Kapitel und Cast-Größe.
 - Buttons unter „Wahlmöglichkeiten“ treffen oder eigene Eingabe über das Textfeld hinzufügen.
@@ -40,12 +41,27 @@ npm test
 
 - Dieses Repo ist statisch. Stelle sicher, dass Pages auf den Branch mit `index.html` zeigt (z. B. `main`, Ordner „/“).
 
+Checkliste:
+
+1) Commit & push auf den Ziel‑Branch (z. B. `main`).
+2) In den Repo‑Settings → Pages: Source = „Deploy from a branch“, Branch = `main`, Folder = `/`.
+3) `.nojekyll` ist enthalten, damit ES‑Module unter `/src` korrekt ausgeliefert werden.
+4) Warte 1–2 Minuten; öffne die angezeigte Pages‑URL. Bei Caching‑Problemen hart neu laden.
+
 ## Ideen/Erweiterungen
 
 - Mehr Genres/Beats und feinere Effekte, z. B. Ressourcen/Inspiration.
 - Export/Import als Datei (JSON) zusätzlich zu `localStorage`.
 - Optional: „kreative Freiheit“-Schieber, der Zufall und Stilwechsel stärker variiert.
 - Visualisierung der Weltwerte als kleine Balkenanzeige oder Sparkline.
+
+### Neu in dieser Version
+
+- Tab-Struktur (Start, Profil & Laden, Einstellungen) mit Simple/Advanced‑Ansicht.
+- Idle‑Punkte: optional +1 alle 30s, solange die Seite im Vordergrund ist (abschaltbar).
+- Neue Genres: Noir, Horror (inkl. Prompt‑Chips, Rollen/Seeds).
+- Provider‑Auswahl erweitert: „WebGPU (experimentell)“ mit lokalem Compute‑Scoring (GPU, fällt bei Bedarf auf CPU zurück).
+- Friedlicher Modus: ruhigere Dramaturgie, weniger harte Rückschläge, sanftere Kapitel‑Eskalation.
 
 ## Meta-Fortschritt & Profile
 

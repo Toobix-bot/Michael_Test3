@@ -18,6 +18,19 @@
 
     <main class="layout">
   <section class="panel controls">
+        <nav class="tabs">
+          <button class="tab active" data-tab="start">Start</button>
+          <button class="tab" data-tab="profile">Profil & Laden</button>
+          <button class="tab" data-tab="settings">Einstellungen</button>
+        </nav>
+        <div class="tab-panel active" data-tab-panel="start">
+        <div class="row">
+          <label for="viewMode">Ansicht</label>
+          <select id="viewMode">
+            <option value="simple" selected>Einfach</option>
+            <option value="advanced">Erweitert</option>
+          </select>
+        </div>
         <div class="row">
           <label for="seed">Idee/Prompt</label>
           <input id="seed" placeholder="z.B. Nebel über einer verlassenen Küstenstadt" />
@@ -27,8 +40,10 @@
             <button class="chip promptchip" data-seed="Ein Leuchtturm blinkt unregelmäßig – SOS?" data-genre="mystery">Mystery: Leuchtturm‑SOS</button>
             <button class="chip promptchip" data-seed="Ein verborgener Pfad im alten Wald öffnet sich nur bei Regen." data-genre="fantasy">Fantasy: Regenpfad</button>
             <button class="chip promptchip" data-seed="Ein Forschungsschiff empfängt ein Signal aus der Zukunft." data-genre="sci-fi">Sci‑Fi: Zukunftssignal</button>
-            <button class="chip promptchip" data-seed="Release in 2 Stunden, ein Test flackert – was nun?" data-genre="mystery">Meta: Flaky Test</button>
-            <button class="chip promptchip" data-seed="Eine Stadt lebt von Erinnerungen als Währung." data-genre="drama">Drama: Erinnerungsmarkt</button>
+            <button class="chip promptchip advanced" data-seed="Release in 2 Stunden, ein Test flackert – was nun?" data-genre="mystery">Meta: Flaky Test</button>
+            <button class="chip promptchip advanced" data-seed="Eine Stadt lebt von Erinnerungen als Währung." data-genre="drama">Drama: Erinnerungsmarkt</button>
+            <button class="chip promptchip" data-seed="Ein Radio spielt eine Sendung, die erst morgen ausgestrahlt wird." data-genre="noir">Noir: Spätsendung</button>
+            <button class="chip promptchip" data-seed="Die Türen verriegeln sich von allein, Flüstern im dunklen Haus." data-genre="horror">Horror: Hausflüstern</button>
           </div>
         </div>
         <div class="row">
@@ -39,55 +54,12 @@
             <option value="sci-fi">Science-Fiction</option>
             <option value="abenteuer">Abenteuer</option>
             <option value="drama">Drama</option>
-          </select>
-        </div>
-        <div class="row">
-          <label for="aiProfile">KI-Profil (Vorschläge)</label>
-          <select id="aiProfile">
-            <option value="balanced" selected>Balanciert</option>
-            <option value="defensive">Defensiv</option>
-            <option value="aggressive">Offensiv</option>
-          </select>
-        </div>
-        <div class="row">
-          <label for="aiProvider">KI-Lab Provider</label>
-          <select id="aiProvider">
-            <option value="none" selected>Keiner (rein lokal)</option>
-            <option value="mock">Mock (Demo)</option>
-          </select>
-        </div>
-        <div class="row">
-          <label for="freedom">Kreative Freiheit <small id="freedomVal" style="color:var(--muted)"></small></label>
-          <input id="freedom" type="range" min="0" max="100" value="40" />
-        </div>
-        <div class="row">
-          <label for="mode">Modus</label>
-          <select id="mode">
-            <option value="story">Geschichte</option>
-            <option value="meta">Meta (Website/Programmierer/Nutzer)</option>
-          </select>
-        </div>
-        <div class="row">
-          <label for="complexity">Kapitel-Länge</label>
-          <select id="complexity">
-            <option value="short">Kurz</option>
-            <option value="normal" selected>Mittel</option>
-            <option value="long">Lang</option>
-          </select>
-        </div>
-        <div class="row">
-          <label for="perspective">Leser-Interjektionen</label>
-          <select id="perspective">
-            <option value="auto">Gelegentlich</option>
-            <option value="off">Aus</option>
-            <option value="on">Oft</option>
+            <option value="noir">Noir</option>
+            <option value="horror">Horror</option>
           </select>
         </div>
         <div class="btn-row">
           <button id="startBtn" class="primary">Neue Geschichte starten</button>
-          <button id="saveBtn">Speichern</button>
-          <button id="loadBtn">Laden</button>
-          <button id="resetBtn" class="ghost">Zurücksetzen</button>
         </div>
         <details class="hint">
           <summary>Was ist das?</summary>
@@ -97,31 +69,21 @@
             Alles passiert lokal im Browser – keine externen KI‑APIs.
           </p>
         </details>
-
-        <details class="hint">
-          <summary>Einstellungen erklärt</summary>
-          <ul>
-            <li><strong>Genre</strong>: Bestimmt Ton, Motive und Vokabular.</li>
-            <li><strong>Kreative Freiheit</strong>: Je höher, desto mehr überraschende Beats und zusätzliche Optionen.</li>
-            <li><strong>Modus</strong>: Geschichte (klassisch) oder Meta (Website/Programmierung als „Story“).</li>
-            <li><strong>Kapitel-Länge</strong>: Kurz/Mittel/Lang steuert Beats pro Kapitel und die Größe des Casts.</li>
-            <li><strong>Leser-Interjektionen</strong>: Schaltet kurze Kommentare einer Leser‑Stimme ein/aus.</li>
-            <li><strong>Profil</strong>: Perks/Relikte geben kleine Start‑Boni; Fortschritt bleibt zwischen Runs erhalten.</li>
-            <li><strong>KI-Profil</strong>: Definiert die Vorschlags-Tendenz (defensiv/balanciert/offensiv). Die persona lernt aus vergangenen Runs.</li>
-          </ul>
-        </details>
-
-        <hr style="border:none;border-top:1px solid rgba(255,255,255,.08);margin:10px 0" />
+        </div>
+        <div class="tab-panel" data-tab-panel="profile">
         <h3 style="margin:6px 0 8px;font-size:1rem;color:var(--muted)">Profil & Fortschritt</h3>
         <div id="profileBox" class="profile">
           <div class="row"><span id="pRuns"></span></div>
           <div class="row"><span id="pBest"></span></div>
           <div class="row"><span id="pPoints"></span></div>
-          <div class="row"><span id="pPerks"></span></div>
-          <div class="row"><span id="pRelics"></span></div>
-          <div class="row"><span id="pAch"></span></div>
-          <div class="row"><span id="pTitles"></span></div>
-          <div class="btn-row">
+          <div class="row advanced"><span id="pPerks"></span></div>
+          <div class="row advanced"><span id="pRelics"></span></div>
+          <div class="row advanced"><span id="pAch"></span></div>
+          <div class="row advanced"><span id="pTitles"></span></div>
+          <div class="row">
+            <label><input type="checkbox" id="idleToggle" checked /> Idle‑Punkte sammeln (+1/30s, nur im Vordergrund)</label>
+          </div>
+          <div class="btn-row advanced">
             <button id="exportBtn">Export</button>
             <label class="filebtn">
               Import
@@ -131,7 +93,7 @@
             <button id="resetPersonaBtn" class="ghost">Persona zurücksetzen</button>
           </div>
         </div>
-        <details class="hint">
+        <details class="hint advanced">
           <summary>Heimat & Laden</summary>
           <div class="row">Tausche Punkte gegen kleine Start‑Boni:</div>
           <div class="btn-row">
@@ -141,7 +103,7 @@
           </div>
           <small style="color:var(--muted)">Punkte sammelst du durch abgeschlossene Runs (abhängig von Score & Kapiteln).</small>
         </details>
-        <details class="hint">
+        <details class="hint advanced">
           <summary>CarryOver-Startoptionen</summary>
           <div class="row">
             <label for="startRelic">Start-Relikt (optional)</label>
@@ -154,6 +116,73 @@
             <input id="startCast" placeholder="Name (falls vorhanden)" />
           </div>
         </details>
+        </div>
+        <div class="tab-panel" data-tab-panel="settings">
+        <div class="row advanced">
+          <label for="aiProfile">KI-Profil (Vorschläge)</label>
+          <select id="aiProfile">
+            <option value="balanced" selected>Balanciert</option>
+            <option value="defensive">Defensiv</option>
+            <option value="aggressive">Offensiv</option>
+          </select>
+        </div>
+        <div class="row advanced">
+          <label for="aiProvider">KI-Lab Provider</label>
+          <select id="aiProvider">
+            <option value="none" selected>Keiner (rein lokal)</option>
+            <option value="mock">Mock (Demo)</option>
+            <option value="gpu">WebGPU (experimentell)</option>
+          </select>
+        </div>
+        <div class="row advanced">
+          <label for="freedom">Kreative Freiheit <small id="freedomVal" style="color:var(--muted)"></small></label>
+          <input id="freedom" type="range" min="0" max="100" value="40" />
+        </div>
+        <div class="row advanced">
+          <label for="mode">Modus</label>
+          <select id="mode">
+            <option value="story">Geschichte</option>
+            <option value="meta">Meta (Website/Programmierer/Nutzer)</option>
+          </select>
+        </div>
+        <div class="row advanced">
+          <label for="complexity">Kapitel-Länge</label>
+          <select id="complexity">
+            <option value="short">Kurz</option>
+            <option value="normal" selected>Mittel</option>
+            <option value="long">Lang</option>
+          </select>
+        </div>
+        <div class="row advanced">
+          <label for="perspective">Leser-Interjektionen</label>
+          <select id="perspective">
+            <option value="auto">Gelegentlich</option>
+            <option value="off">Aus</option>
+            <option value="on">Oft</option>
+          </select>
+        </div>
+        <div class="row advanced">
+          <label><input type="checkbox" id="peacefulMode" /> Friedlicher Modus (weniger Rückschläge, geringere Gefahr/Spannung)</label>
+        </div>
+        <div class="btn-row">
+          <button id="saveBtn" class="advanced">Speichern</button>
+          <button id="loadBtn" class="advanced">Laden</button>
+          <button id="resetBtn" class="ghost advanced">Zurücksetzen</button>
+        </div>
+        <details class="hint advanced">
+          <summary>Einstellungen erklärt</summary>
+          <ul>
+            <li><strong>Genre</strong>: Bestimmt Ton, Motive und Vokabular.</li>
+            <li><strong>Kreative Freiheit</strong>: Je höher, desto mehr überraschende Beats und zusätzliche Optionen.</li>
+            <li><strong>Modus</strong>: Geschichte (klassisch) oder Meta (Website/Programmierung als „Story“).</li>
+            <li><strong>Kapitel-Länge</strong>: Kurz/Mittel/Lang steuert Beats pro Kapitel und die Größe des Casts.</li>
+            <li><strong>Leser-Interjektionen</strong>: Schaltet kurze Kommentare einer Leser‑Stimme ein/aus.</li>
+            <li><strong>Profil</strong>: Perks/Relikte geben kleine Start‑Boni; Fortschritt bleibt zwischen Runs erhalten.</li>
+            <li><strong>KI-Profil</strong>: Definiert die Vorschlags-Tendenz (defensiv/balanciert/offensiv). Die Persona lernt aus vergangenen Runs.</li>
+            <li><strong>WebGPU</strong>: Benötigt HTTPS (z. B. GitHub Pages) und einen aktuellen Browser.</li>
+          </ul>
+        </details>
+        </div>
       </section>
 
       <section class="panel story">
@@ -175,17 +204,17 @@
           <span id="statusCast"></span>
           <button id="menuBtn" class="ghost">Menü</button>
         </div>
-        <div class="world-bars">
+    <div class="world-bars advanced">
           <div class="bar"><span>Hoffnung</span><div class="track"><div class="fill hope" id="barHope"></div></div></div>
           <div class="bar"><span>Spannung</span><div class="track"><div class="fill tension" id="barTension"></div></div></div>
           <div class="bar"><span>Gefahr</span><div class="track"><div class="fill threat" id="barThreat"></div></div></div>
         </div>
-        <div class="insights">
+    <div class="insights advanced">
           <div>
             <strong>KI-Mitspieler</strong>
             <div class="btn-row">
               <button id="aiSuggestBtn">Vorschlag</button>
-              <button id="aiAutoBtn" class="ghost">Auto (1 Schritt)</button>
+      <button id="aiAutoBtn" class="ghost advanced">Auto (1 Schritt)</button>
             </div>
           </div>
           <div>
@@ -207,11 +236,11 @@
           <button class="chip" data-free="/fragen Hinweis">Fragen</button>
           <button class="chip" data-free="/verbündeter suchen">Verbündeten suchen</button>
           <button class="chip" data-free="/rückzug">Rückzug</button>
-          <button class="chip" data-free="/refactor (meta)">Meta: Refactor</button>
-          <button class="chip" data-free="/review (meta)">Meta: Review</button>
-          <button class="chip" data-free="/rollback (meta)">Meta: Rollback</button>
+          <button class="chip advanced" data-free="/refactor (meta)">Meta: Refactor</button>
+          <button class="chip advanced" data-free="/review (meta)">Meta: Review</button>
+          <button class="chip advanced" data-free="/rollback (meta)">Meta: Rollback</button>
         </div>
-        <div class="hint" style="margin-top:6px">
+        <div class="hint advanced" style="margin-top:6px">
           Tipp: Verwende starke Verben oder Slash‑Befehle. Die KI interpretiert <code>/untersuchen</code> als Fortschritt,
           <code>/konfrontieren</code> als Enthüllung (mehr Spannung), <code>/rückzug</code>/<code>/rollback</code> als Rückschritt (Risikoabbau).
         </div>
@@ -225,11 +254,14 @@
 
     <script type="module">
   import { StoryEngine } from './src/engine.mjs';
-  import { loadProfile, saveProfile, resetProfile, exportProfile, importProfile, applyCarryoverOptions, applyRunResultToProfile, canAfford, purchasePerk, purchaseRelic } from './src/profile.mjs';
+  import { loadProfile, saveProfile, resetProfile, exportProfile, importProfile, applyCarryoverOptions, applyRunResultToProfile, purchasePerk, purchaseRelic } from './src/profile.mjs';
   import { getProvider } from './src/ai/providers.mjs';
 
       const els = {
         seed: document.getElementById('seed'),
+  tabs: Array.from(document.querySelectorAll('.tab')),
+  tabPanels: Array.from(document.querySelectorAll('.tab-panel')),
+  viewMode: document.getElementById('viewMode'),
         genre: document.getElementById('genre'),
   freedom: document.getElementById('freedom'),
   freedomVal: document.getElementById('freedomVal'),
@@ -238,6 +270,7 @@
   mode: document.getElementById('mode'),
   complexity: document.getElementById('complexity'),
         perspective: document.getElementById('perspective'),
+  peacefulMode: document.getElementById('peacefulMode'),
         startBtn: document.getElementById('startBtn'),
         saveBtn: document.getElementById('saveBtn'),
         loadBtn: document.getElementById('loadBtn'),
@@ -273,11 +306,13 @@
   buyOptimistBtn: document.getElementById('buyOptimistBtn'),
   buyCalmBtn: document.getElementById('buyCalmBtn'),
   buyRelicBtn: document.getElementById('buyRelicBtn'),
+  idleToggle: document.getElementById('idleToggle'),
       };
 
     let engine = null;
   let profile = loadProfile();
   let provider = null;
+  let idleTimer = null;
 
       function renderLog(log) {
         els.story.innerHTML = '';
@@ -322,15 +357,16 @@
         els.pTitles.textContent = title ? `Titel: ${title}` : '';
         // fill carryover dropdown
         const sel = els.startRelic;
-        if (sel && sel.children.length <= 1) {
+  if (sel && sel.children.length <= 1) {
           (profile.relics||[]).forEach(r => {
             const o = document.createElement('option'); o.value = r; o.textContent = r; sel.appendChild(o);
           });
         }
-  // enable/disable shop buttons
-  if (els.buyOptimistBtn) els.buyOptimistBtn.disabled = profile.perks.includes('Optimist') || !canAfford(profile, 50);
-  if (els.buyCalmBtn) els.buyCalmBtn.disabled = profile.perks.includes('CalmMind') || !canAfford(profile, 40);
-  if (els.buyRelicBtn) els.buyRelicBtn.disabled = !canAfford(profile, 60);
+  // enable/disable shop buttons (inline affordability checks)
+  const pts = profile.points ?? 0;
+  if (els.buyOptimistBtn) els.buyOptimistBtn.disabled = profile.perks.includes('Optimist') || pts < 50;
+  if (els.buyCalmBtn) els.buyCalmBtn.disabled = profile.perks.includes('CalmMind') || pts < 40;
+  if (els.buyRelicBtn) els.buyRelicBtn.disabled = pts < 60;
       }
 
       function renderInsights() {
@@ -374,7 +410,7 @@
   const carry = applyCarryoverOptions(profile);
         const startRelic = els.startRelic?.value || '';
         const startCastPref = (els.startCast?.value||'').trim();
-  engine = new StoryEngine({ seed, genre, freedom, mode, complexity, readerMode, language: 'de', boosts: carry.boosts, explain: true, aiProfile, startRelic, startCastPref, stylePref: profile.stylePref, policy: profile.policy, onEnd: (result) => {
+  engine = new StoryEngine({ seed, genre, freedom, mode, complexity, readerMode, language: 'de', boosts: carry.boosts, explain: true, aiProfile, startRelic, startCastPref, stylePref: profile.stylePref, policy: profile.policy, peaceful: !!els.peacefulMode?.checked, onEnd: (result) => {
           profile = applyRunResultToProfile(profile, result);
           renderProfile();
           toast('Run abgeschlossen: Score '+result.score, 'ok');
@@ -389,6 +425,12 @@
       }
 
       els.startBtn.addEventListener('click', boot);
+      // tabs
+      function switchTab(id){
+        els.tabs.forEach(t=>t.classList.toggle('active', t.dataset.tab===id));
+        els.tabPanels.forEach(p=>p.classList.toggle('active', p.dataset.tabPanel===id));
+      }
+      els.tabs.forEach(t=> t.addEventListener('click', ()=> switchTab(t.dataset.tab)) );
       els.actBtn.addEventListener('click', () => {
         const text = (els.freeInput.value || '').trim();
         if (!text) return;
@@ -493,13 +535,13 @@
       if (localStorage.getItem('ki-story-weber-save')) showMenu();
 
       // AI co-player buttons
-      els.aiSuggestBtn.addEventListener('click', () => {
+  els.aiSuggestBtn.addEventListener('click', async () => {
         renderInsights();
         // optional provider suggestion
         if (provider && provider.name !== 'none') {
           try {
             const st = engine?.getPublicState?.();
-            const ps = provider.suggest?.(st, st?.choices||[]);
+    const ps = await provider.suggest?.(st, st?.choices||[]);
             if (ps && typeof ps.index === 'number') {
               const title = st?.choices?.[ps.index]?.title || `Index ${ps.index}`;
               toast(`Provider: ${title}${ps.rationale?(' — '+ps.rationale):''}`, 'info');
@@ -507,15 +549,15 @@
           } catch {}
         }
       });
-      els.aiAutoBtn.addEventListener('click', () => {
+  els.aiAutoBtn.addEventListener('click', async () => {
         const s = engine?.getInsights?.();
         if (s?.suggestion) {
           engine.next({ type: 'choice', index: s.suggestion.index });
         }
         else if (provider && provider.name !== 'none') {
           const st = engine?.getPublicState?.();
-          const ps = provider.suggest?.(st, st?.choices||[]);
-          if (ps && typeof ps.index === 'number') engine.next({ type: 'choice', index: ps.index });
+      const ps = await provider.suggest?.(st, st?.choices||[]);
+      if (ps && typeof ps.index === 'number') engine.next({ type: 'choice', index: ps.index });
         }
       });
 
@@ -579,6 +621,31 @@
 
       // initial render
   renderProfile();
+  // idle points ticker
+  function startIdle(){
+    stopIdle();
+    if (!els.idleToggle?.checked) return;
+    idleTimer = setInterval(()=>{
+      if (document.hidden) return; // only when tab focused
+      profile.points = (profile.points||0) + 1;
+      saveProfile(profile);
+      renderProfile();
+    }, 30000);
+  }
+  function stopIdle(){ if (idleTimer) { clearInterval(idleTimer); idleTimer = null; } }
+  els.idleToggle?.addEventListener('change', ()=>{ if (els.idleToggle.checked) startIdle(); else stopIdle(); });
+  startIdle();
+  // view mode toggle
+  const savedView = localStorage.getItem('ki-story-view') || 'simple';
+  if (els.viewMode) {
+    els.viewMode.value = savedView;
+    document.body.classList.toggle('simple', savedView === 'simple');
+    els.viewMode.addEventListener('change', () => {
+      const mode = els.viewMode.value;
+      localStorage.setItem('ki-story-view', mode);
+      document.body.classList.toggle('simple', mode === 'simple');
+    });
+  }
   const updateFreedomLabel = () => { els.freedomVal.textContent = `${els.freedom.value}%`; };
   els.freedom.addEventListener('input', updateFreedomLabel);
   updateFreedomLabel();

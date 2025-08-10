@@ -54,15 +54,24 @@ export class StoryEngine {
   this.state.freedom = this._freedom;
   this._explain = !!opts.explain;
   this._aiProfile = opts.aiProfile || 'balanced'; // 'balanced' | 'defensive' | 'aggressive'
+  this._peaceful = !!opts.peaceful;
   this._startRelic = opts.startRelic || '';
   this._startCastPref = opts.startCastPref || '';
   this._stylePref = opts.stylePref || null;
   this._policy = opts.policy || null; // { intents: { progress, reveal, setback } }
-    // apply boosts (carryover)
+  // surface mode flags into state for agents that only get state
+  this.state.peaceful = this._peaceful;
+  // apply boosts (carryover)
     const boosts = opts.boosts || {};
     this.state.world.hope = clamp01(this.state.world.hope + (boosts.startHope||0));
     this.state.world.tension = clamp01(this.state.world.tension + (boosts.startTension||0));
     this.state.world.threat = clamp01(this.state.world.threat + (boosts.startThreat||0));
+    if (this._peaceful) {
+      // nudge start world to calmer state
+      this.state.world.hope = clamp01(this.state.world.hope + 0.05);
+      this.state.world.tension = clamp01(this.state.world.tension - 0.04);
+      this.state.world.threat = clamp01(this.state.world.threat - 0.03);
+    }
     // seed accent tallies from style preferences (learned persona)
     if (this._stylePref?.accents) {
       for (const k of Object.keys(this._stylePref.accents)) {
@@ -116,13 +125,15 @@ export class StoryEngine {
   _advance(intent, target, meta) {
     // Chapter transition
     const beatsPerChapter = this._beatsPerChapter();
-    if (this.state.step >= beatsPerChapter) {
+  if (this.state.step >= beatsPerChapter) {
       const summary = this._author.chapterSummary(this.state);
       this.state.log.push(this._narrator.tell({ type: 'chapterEnd', summary }, this.state));
       this.state.chapter += 1;
       this.state.step = 0;
-      // escalate stakes lightly between chapters
-      this.state.world.threat += 0.05; this.state.world.tension += 0.03; clampWorld(this.state.world);
+  // escalate stakes between chapters; in peaceful mode, reduce escalation
+  const escThr = this._peaceful ? 0.02 : 0.05;
+  const escTen = this._peaceful ? 0.01 : 0.03;
+  this.state.world.threat += escThr; this.state.world.tension += escTen; clampWorld(this.state.world);
       if (this.state.chapter > this.state.maxChapters) {
         this._finishRun('overlimit');
         return;
@@ -139,9 +150,12 @@ export class StoryEngine {
     this.state.log.push(line);
 
     // world state tweaks
-    if (beat.kind === 'reveal') this.state.world.tension += 0.05;
-    if (beat.kind === 'setback') { this.state.world.hope -= 0.05; this.state.world.threat += 0.05; }
-    if (beat.kind === 'progress') { this.state.world.hope += 0.05; this.state.world.tension -= 0.02; }
+    if (beat.kind === 'reveal') this.state.world.tension += this._peaceful ? 0.03 : 0.05;
+    if (beat.kind === 'setback') {
+      const k = this._peaceful ? 0.6 : 1.0;
+      this.state.world.hope -= 0.05 * k; this.state.world.threat += 0.05 * k;
+    }
+    if (beat.kind === 'progress') { this.state.world.hope += this._peaceful ? 0.06 : 0.05; this.state.world.tension -= this._peaceful ? 0.03 : 0.02; }
     clampWorld(this.state.world);
     if (meta?.selected?.accents) {
       for (const a of meta.selected.accents) {
@@ -171,7 +185,8 @@ export class StoryEngine {
   suggestChoice() {
     const state = this.state;
     if (!state.choices || state.choices.length === 0) return null;
-    const targetTension = 0.4 + (this._freedom - 0.5) * 0.1; // slight drift with freedom
+  let targetTension = 0.4 + (this._freedom - 0.5) * 0.1; // slight drift with freedom
+  if (this._peaceful) targetTension -= 0.05;
     const weights = (p => {
       switch(p){
         case 'defensive': return { momentum: 2.0, safety: 3.0, tensionFit: 1.2, style: 0.4 };
@@ -209,7 +224,7 @@ export class StoryEngine {
   // Insights for UI: forecast and context
   getInsights() {
     const s = this.state;
-    const dist = forecastBeatDist(this._freedom, s.world);
+    const dist = forecastBeatDist(this._freedom, s.world, this._peaceful);
     const suggestion = this.suggestChoice();
     const castTraits = (s.cast||[]).map(x=>({ name: x.name, traits: x.traits }));
     return { distribution: dist, suggestion, castTraits };
@@ -290,14 +305,18 @@ class AuthorAgent {
       fantasy: 'Ein Flüstern alter Magie regt die Luft',
       'sci-fi': 'Ein Sensor pingt – etwas ist jenseits des Protokolls',
       abenteuer: 'Eine wacklige Karte verspricht mehr als Vernunft',
-      drama: 'Ein unausgesprochenes Wort lastet im Raum',
+  drama: 'Ein unausgesprochenes Wort lastet im Raum',
+  noir: 'Ein Radiosummen trägt Gerüchte durch die Nacht',
+  horror: 'Etwas atmet zwischen den Wänden – keiner will es hören',
     };
     const seedsMeta = {
       mystery: 'Die Website verbirgt ein Pfad-Rätsel',
       fantasy: 'Der Code haucht alten Mustern Leben ein',
       'sci-fi': 'Ein Build-Check überschreitet bekannte Protokolle',
       abenteuer: 'Ein Prototyp verspricht mehr als Spezifikationen',
-      drama: 'Ein diff schwebt unausgesprochen im PR',
+  drama: 'Ein diff schwebt unausgesprochen im PR',
+  noir: 'Ein Logfile flüstert von nächtlichen Request-Spuren',
+  horror: 'Ein Prozess hängt – und zieht alles in die Tiefe',
     };
     const dict = state.mode === 'meta' ? seedsMeta : seedsStory;
     const base = dict[state.genre] || dict.mystery;
@@ -334,10 +353,23 @@ class AuthorAgent {
   const count = (state?.freedom ?? 0.4) > 0.6 && this.rand() > 0.5 ? 4 : 3;
     const choices = shuffle(pool, this.rand).slice(0, count).map(c => {
       const effects = computeEffects(c.intent);
+      if (state.peaceful) {
+        // soften negative effects and threat
+        effects.threat = (effects.threat||0) * 0.6;
+        effects.tension = (effects.tension||0) * 0.8;
+      }
       const risk = riskLabel(effects);
       const accents = classifyAccents(c.intent, effects);
       return { ...c, effects, risk, accents };
     });
+    // bias away from pure setback in peaceful mode by reweighting order
+    if (state.peaceful) {
+      choices.sort((a,b)=>{
+        const sa = a.intent?.kind === 'setback' ? 1 : 0;
+        const sb = b.intent?.kind === 'setback' ? 1 : 0;
+        return sa - sb;
+      });
+    }
     return choices;
   }
 
@@ -418,7 +450,9 @@ function defaultCast(genre, rand, complexity) {
     fantasy: ['Magierin','Hüter','Bardin','Kundschafter','Alchimist'],
     'sci-fi': ['Navigatorin','Ingenieur','Bot','Pilotin','Linguist'],
     abenteuer: ['Kartographin','Späher','Kapitän','Forscherin','Bote'],
-    drama: ['Schriftsteller','Regisseurin','Schauspieler','Mentorin','Kritikerin']
+  drama: ['Schriftsteller','Regisseurin','Schauspieler','Mentorin','Kritikerin'],
+  noir: ['Detektiv','Radiomoderatorin','Informantin','Barkeeper','Stadtplaner'],
+  horror: ['Heimleiterin','Bewohner','Priester','Forscher','Hüter der Schlüssel']
   };
   const baseRoles = rolesByGenre[genre] || rolesByGenre.mystery;
   const size = complexity === 'long' ? 3 : complexity === 'short' ? 1 : 2;
@@ -494,7 +528,7 @@ function explainDelta(d) {
   return `(Auswirkung: ${parts.join(' · ')})`;
 }
 
-function forecastBeatDist(freedom, world) {
+function forecastBeatDist(freedom, world, peaceful=false) {
   // very rough forecast used for UI hints
   const base = { reveal: 0.25, progress: 0.35, setback: 0.25, choice: 0.15 };
   const f = freedom||0;
@@ -503,6 +537,13 @@ function forecastBeatDist(freedom, world) {
   // higher tension nudges toward setbacks, lower toward progress
   base.setback += (world.tension - 0.5) * 0.1;
   base.progress += (0.5 - world.tension) * 0.1;
+  // peaceful mode biases away from setbacks and toward progress/choice
+  if (peaceful) {
+    base.setback -= 0.08;
+    base.progress += 0.06;
+    base.choice += 0.02;
+    base.reveal -= 0.00; // keep neutral
+  }
   // normalize
   const sum = Object.values(base).reduce((a,b)=>a+b,0);
   for (const k of Object.keys(base)) base[k] = Math.max(0, base[k]/sum);
